@@ -5,6 +5,7 @@
     <item name="action_boot" type="id" />
     <item name="action_move" type="id" />
     <item name="action_blank_row" type="id" />
+    <item name="action_tidy" type="id" />
     <item name="action_widget_remove" type="id" />
     <item name="action_uninstall" type="id" />
 </resources>

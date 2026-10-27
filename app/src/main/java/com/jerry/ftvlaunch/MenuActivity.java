@@ -86,7 +86,10 @@ public class MenuActivity extends Activity {
 
         boolean fromDrawer = getIntent().getBooleanExtra(EXTRA_FROM_DRAWER, false);
         addItem(R.drawable.ic_to_top, fromDrawer ? "置顶桌面" : getString(R.string.to_top), R.id.action_top);
-        if (!fromDrawer) addItem(R.drawable.ic_list, "上方留空一行", R.id.action_blank_row);
+        if (!fromDrawer) {
+            addItem(R.drawable.ic_list, "上方留空一行", R.id.action_blank_row);
+            addItem(R.drawable.ic_aa, "整理桌面", R.id.action_tidy);
+        }
         if (!getIntent().getBooleanExtra(EXTRA_FROM_DRAWER, false)) {
             addItem(R.drawable.ic_list, "移动位置", R.id.action_move);
         }
@@ -168,6 +171,12 @@ public class MenuActivity extends Activity {
                 for (int i = 0; i < 5; i++) home.add(rowStart, HomeStore.EMPTY);
             }
             HomeStore.saveHome(this, home);
+        } else if (actionId == R.id.action_tidy) {
+            java.util.List<String> packed = new java.util.ArrayList<>();
+            for (String p : home) {
+                if (!HomeStore.EMPTY.equals(p)) packed.add(p);
+            }
+            HomeStore.saveHome(this, packed);
         } else if (actionId == R.id.action_move) {
             UiState.pendingMove = pkg;
         } else if (actionId == R.id.action_uninstall) {
