@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
                 Object o = adapter.items.get(Math.max(0, selectedPos));
                 if (Widgets.PLACEHOLDER.equals(o)) {
                     if (adapter.widgetCell != null) Widgets.sendClick(adapter.widgetCell.hostView);
-                } else {
+                } else if (o instanceof AppRepo.App) {
                     launch(((AppRepo.App) o).pkg);
                 }
             }
@@ -230,8 +230,8 @@ public class MainActivity extends Activity {
                     int idx = Math.max(0, selectedPos);
                     if (idx >= 0 && idx < adapter.getCount()) {
                         Object o = adapter.items.get(idx);
-                        pkg = Widgets.PLACEHOLDER.equals(o) ? Widgets.PLACEHOLDER
-                                : ((AppRepo.App) o).pkg;
+                        if (o instanceof AppRepo.App) pkg = ((AppRepo.App) o).pkg;
+                        else if (Widgets.PLACEHOLDER.equals(o)) pkg = Widgets.PLACEHOLDER;
                     }
                 }
                 if (pkg != null) openMenu(pkg);
@@ -396,7 +396,17 @@ public class MainActivity extends Activity {
                 }, 260);
                 return;
             }
-            target = movingPos + dy * 5;
+            int step = dy * 5;
+            int probe = movingPos + step;
+            int nearest = -1;
+            while (probe >= 0 && probe < home.size()) {
+                if (!HomeStore.EMPTY.equals(home.get(probe))) {
+                    nearest = probe;
+                    break;
+                }
+                probe += step;
+            }
+            target = nearest >= 0 ? nearest : movingPos + step;
         }
         if (target < 0) return;
         while (home.size() <= target && home.size() < 60) home.add(HomeStore.EMPTY);
