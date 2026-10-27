@@ -35,7 +35,7 @@ public final class HomeStore {
             }
             saveHome(ctx, list);
         }
-        while (list.size() < 15) list.add(EMPTY);
+        while (list.size() < 10) list.add(EMPTY);
         return list;
     }
 

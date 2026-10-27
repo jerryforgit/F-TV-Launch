@@ -159,8 +159,14 @@ public class MenuActivity extends Activity {
                 home.add(pkg);
                 index = home.size() - 1;
             }
-            int rowStart = (index / 5) * 5;
-            for (int i = 0; i < 5; i++) home.add(rowStart, HomeStore.EMPTY);
+            // 先去掉尾部空位，避免无限增长
+            while (!home.isEmpty() && HomeStore.EMPTY.equals(home.get(home.size() - 1))) {
+                home.remove(home.size() - 1);
+            }
+            int rowStart = (Math.min(index, home.size() - 1) / 5) * 5;
+            if (home.size() < 30) {
+                for (int i = 0; i < 5; i++) home.add(rowStart, HomeStore.EMPTY);
+            }
             HomeStore.saveHome(this, home);
         } else if (actionId == R.id.action_move) {
             UiState.pendingMove = pkg;

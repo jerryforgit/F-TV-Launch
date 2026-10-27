@@ -252,7 +252,13 @@ public class MainActivity extends Activity {
             else if (code == KeyEvent.KEYCODE_DPAD_DOWN && selectedPos + 5 < count) dir = 5;
             if (dir != 0) {
                 int t = nextNonEmpty(selectedPos + dir, dir);
-                if (t >= 0) next = t;
+                if (t >= 0) {
+                    next = t;
+                } else if (dir < 0) {
+                    // 上面只剩空位：直接进顶栏
+                    focusTopBarForColumn(selectedPos);
+                    return true;
+                }
             }
             if (next != selectedPos) {
                 selectedPos = next;
@@ -357,7 +363,9 @@ public class MainActivity extends Activity {
         } else {
             target = movingPos + dy * 5;
         }
-        if (target < 0 || target >= home.size()) return;
+        if (target < 0) return;
+        while (home.size() <= target && home.size() < 15) home.add(HomeStore.EMPTY);
+        if (target >= home.size()) return;
         String pkg = home.remove(movingPos);
         home.add(target, pkg);
         HomeStore.saveHome(this, home);
@@ -403,6 +411,9 @@ public class MainActivity extends Activity {
 
     private void applyTheme() {
         findViewById(R.id.root).setBackgroundColor(Theme.bg(this));
+        findViewById(R.id.top_bar).setBackgroundColor(Theme.isDark(this)
+                ? android.graphics.Color.parseColor("#E614161B")
+                : android.graphics.Color.parseColor("#E6D3DCEA"));
         tvDate.setTextColor(Theme.text(this));
         tvTime.setTextColor(Theme.text(this));
         for (int id : new int[]{R.id.btn_apps, R.id.btn_settings, R.id.btn_network,
