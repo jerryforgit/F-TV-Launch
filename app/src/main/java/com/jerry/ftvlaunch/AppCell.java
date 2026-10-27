@@ -12,7 +12,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** 应用格子：外层浅灰圆角，聚焦时里面浮起一张白色卡片（带阴影），复刻旧版 hover。 */
+/** 应用格子：外层浅灰圆角，聚焦时浮起白色卡片并轻微放大。 */
 class AppCell extends LinearLayout {
 
     private final LinearLayout card;
