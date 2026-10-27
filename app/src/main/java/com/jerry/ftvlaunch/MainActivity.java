@@ -374,10 +374,23 @@ public class MainActivity extends Activity {
             if (dx > 0 && col == 4) return;
             target = movingPos + dx;
         } else {
+            if (dy < 0 && movingPos < 5) {
+                // 已经在第一行还往上：整页下移一行，给上面腾出空间
+                for (int i = 0; i < 5; i++) home.add(0, HomeStore.EMPTY);
+                movingPos += 5;
+                HomeStore.saveHome(this, home);
+                adapter.reload();
+                grid.setSelection(movingPos);
+                grid.postDelayed(() -> {
+                    markSelected(movingPos);
+                    updateMoveVisuals();
+                }, 260);
+                return;
+            }
             target = movingPos + dy * 5;
         }
         if (target < 0) return;
-        while (home.size() <= target && home.size() < 15) home.add(HomeStore.EMPTY);
+        while (home.size() <= target && home.size() < 60) home.add(HomeStore.EMPTY);
         if (target >= home.size()) return;
         String pkg = home.remove(movingPos);
         home.add(target, pkg);

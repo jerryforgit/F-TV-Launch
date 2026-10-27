@@ -164,7 +164,7 @@ public class MenuActivity extends Activity {
                 home.remove(home.size() - 1);
             }
             int rowStart = (Math.min(index, home.size() - 1) / 5) * 5;
-            if (home.size() < 30) {
+            if (home.size() < 60) {
                 for (int i = 0; i < 5; i++) home.add(rowStart, HomeStore.EMPTY);
             }
             HomeStore.saveHome(this, home);
