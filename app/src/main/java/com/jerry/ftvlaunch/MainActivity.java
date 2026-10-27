@@ -64,6 +64,18 @@ public class MainActivity extends Activity {
         moveArrows = findViewById(R.id.move_arrows);
         adapter = new HomeAdapter();
         grid.setAdapter(adapter);
+        grid.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int firstVisibleItem,
+                                int visibleItemCount, int totalItemCount) {
+                updateTopBarScrim();
+            }
+        });
+        grid.getViewTreeObserver().addOnScrollChangedListener(this::updateTopBarScrim);
         grid.setOnItemClickListener((parent, view, position, id) -> {
             if (editMode) {
                 exitEditMode();
@@ -123,6 +135,7 @@ public class MainActivity extends Activity {
         }
         adapter.reload();
         lastSelected = getSharedPreferences("ui", MODE_PRIVATE).getInt("sel", lastSelected);
+        if (lastSelected >= adapter.getCount()) lastSelected = Math.max(0, adapter.getCount() - 1);
         selectedPos = lastSelected;
         grid.postDelayed(() -> {
             grid.setSelection(lastSelected);
@@ -411,9 +424,7 @@ public class MainActivity extends Activity {
 
     private void applyTheme() {
         findViewById(R.id.root).setBackgroundColor(Theme.bg(this));
-        findViewById(R.id.top_bar).setBackgroundColor(Theme.isDark(this)
-                ? android.graphics.Color.parseColor("#E614161B")
-                : android.graphics.Color.parseColor("#E6D3DCEA"));
+        updateTopBarScrim();
         tvDate.setTextColor(Theme.text(this));
         tvTime.setTextColor(Theme.text(this));
         for (int id : new int[]{R.id.btn_apps, R.id.btn_settings, R.id.btn_network,
@@ -421,6 +432,9 @@ public class MainActivity extends Activity {
             View v = findViewById(id);
             if (v instanceof IconButton) ((IconButton) v).applyTheme(this);
         }
+        View bar = findViewById(R.id.top_bar);
+        bar.setElevation(dp(12));
+        bar.setOutlineProvider(null);
     }
 
     private void markSelected() {
@@ -461,6 +475,20 @@ public class MainActivity extends Activity {
     }
 
     /** 第一行某一列往上：按列位置等比映射到顶栏按钮，避免右边几列都跳到最后一个。 */
+    /** 只有网格滚动了才给顶栏加半透明底，默认完全透明。 */
+    private void updateTopBarScrim() {
+        View bar = findViewById(R.id.top_bar);
+        if (bar == null) return;
+        boolean scrolled = grid.getChildCount() > 0 && grid.getChildAt(0).getTop() < grid.getPaddingTop();
+        if (scrolled) {
+            bar.setBackgroundColor(Theme.isDark(this)
+                    ? android.graphics.Color.parseColor("#D014161B")
+                    : android.graphics.Color.parseColor("#D0D3DCEA"));
+        } else {
+            bar.setBackground(null);
+        }
+    }
+
     private void focusTopBarForColumn(int pos) {
         int[] ids = {R.id.btn_apps, R.id.btn_settings, R.id.btn_network, R.id.btn_clean,
                 R.id.btn_desktop_settings, R.id.btn_transfer};
@@ -563,6 +591,7 @@ public class MainActivity extends Activity {
 
         @Override
         public long getItemId(int position) {
+            if (position < 0 || position >= items.size()) return position;
             Object o = items.get(position);
             if (o instanceof AppRepo.App) return ((AppRepo.App) o).pkg.hashCode();
             return o == null ? 0 : o.hashCode() + 1000003L;

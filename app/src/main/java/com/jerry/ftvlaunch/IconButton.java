@@ -47,8 +47,10 @@ public class IconButton extends LinearLayout {
         label.setAlpha(0f); // 原版：聚焦时淡入，同时图标上移
         addView(label);
 
+        image.setTranslationY(dp(8));
         setOnFocusChangeListener((v, hasFocus) -> {
             label.animate().alpha(hasFocus ? 1f : 0f).setDuration(120).start();
+            image.animate().translationY(hasFocus ? 0 : dp(8)).setDuration(140).start();
             setBackgroundResource(hasFocus ? R.drawable.icon_focus_bg : 0);
         });
 
