@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">F TV Launcher</string>
+    <string name="my_apps">我的应用</string>
+    <string name="settings">设置</string>
+    <string name="network">网络</string>
+    <string name="clear">清理</string>
+    <string name="to_top">置顶应用</string>
+    <string name="remove_home">移出主页</string>
+    <string name="add_home">添加至桌面</string>
+    <string name="boot_on">设为开机启动</string>
+    <string name="boot_off">取消开机启动</string>
+    <string name="uninstall">卸载应用</string>
+    <string name="wifi_detail">网络详情</string>
+</resources>

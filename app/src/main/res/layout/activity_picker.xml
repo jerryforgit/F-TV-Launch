@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_picker"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="110dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="60dp"
+            android:paddingRight="45dp">
+
+            <TextView
+                android:id="@+id/picker_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:text="选择背景图片（网页上传的也会出现在这里）"
+                android:textColor="#FF4D4D4D"
+                android:textSize="34dp" />
+
+            <TextView
+                android:id="@+id/picker_network"
+                android:layout_width="wrap_content"
+                android:layout_height="70dp"
+                android:background="@drawable/cell_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="28dp"
+                android:paddingRight="28dp"
+                android:text="网络位置 (SMB)"
+                android:textColor="@color/textColor"
+                android:textSize="26dp" />
+        </LinearLayout>
+
+        <GridView
+            android:id="@+id/picker_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:horizontalSpacing="20dp"
+            android:numColumns="5"
+            android:paddingLeft="45dp"
+            android:paddingRight="45dp"
+            android:paddingBottom="30dp"
+            android:scrollbars="none"
+            android:verticalSpacing="20dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/picker_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="没有找到图片，先用「传文件」传一张上来"
+        android:textSize="30dp"
+        android:visibility="gone" />
+</FrameLayout>

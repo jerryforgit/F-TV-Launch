@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FFD3DCEA</color>
+    <color name="bgSelected">#CCFFFFFF</color>
+    <color name="iconColor">#FF808080</color>
+    <color name="textColor">#FF4D4D4D</color>
+    <color name="cellBg">#F2F2F2F2</color>
+    <color name="cellBgFocused">#FFFAFAFA</color>
+    <color name="panelBg">#FFD3DCEA</color>
+    <color name="menuRowFocused">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FF0BCA61</color>
+</resources>

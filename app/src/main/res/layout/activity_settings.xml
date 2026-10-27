@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_settings"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="60dp"
+        android:paddingRight="60dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="桌面设置"
+            android:textColor="#FF4D4D4D"
+            android:textSize="60dp" />
+
+        <TextView
+            android:id="@+id/hint_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="40dp"
+            android:text="长按应用图标可置顶 / 移出主页 / 开机启动 / 卸载"
+            android:textColor="#FF8A8A8A"
+            android:textSize="26dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/row_delay"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_boot_count"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_dark"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:text="深色主题    关"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_wallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:text="桌面背景    选择图片"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_wallpaper_reset"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:text="桌面背景    恢复默认"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_widget"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:text="桌面小控件    添加"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+    <TextView
+        android:id="@+id/row_widget_remove"
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginLeft="60dp"
+        android:layout_marginRight="60dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/cell_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:text="桌面小控件    移除"
+        android:textColor="@color/textColor"
+        android:textSize="36dp" />
+
+</LinearLayout>

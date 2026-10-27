@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_home">
+        <item>com.ktcp.video</item>
+        <item>blbl.cat3399</item>
+        <item>com.bluberry.aircast</item>
+        <item>com.dangbei.screencast</item>
+        <item>com.dangbeimarket</item>
+        <item>com.limelight</item>
+        <item>com.trim.tv</item>
+        <item>com.github.kr328.clash</item>
+        <item>me.dyxs.tv</item>
+    </string-array>
+</resources>
