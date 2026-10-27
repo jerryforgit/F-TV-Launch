@@ -13,6 +13,7 @@
 
         <LinearLayout
             android:id="@+id/top_bar"
+            android:elevation="12dp"
             android:layout_width="match_parent"
             android:layout_height="130dp"
             android:orientation="horizontal">
@@ -122,61 +123,6 @@
             android:nextFocusUp="@id/btn_apps"
             android:scrollbars="none"
             android:verticalSpacing="20dp" />
-    </LinearLayout>
-
-    <!-- 右侧网络详情面板 -->
-    <LinearLayout
-        android:id="@+id/wifi_panel"
-        android:layout_width="480dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="right"
-        android:background="@color/panelBg"
-        android:elevation="12dp"
-        android:orientation="vertical"
-        android:paddingLeft="40dp"
-        android:paddingTop="40dp"
-        android:paddingRight="40dp"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/wifi_ssid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FF333333"
-            android:textSize="40dp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="24dp"
-            android:background="#33000000" />
-
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-            <LinearLayout
-                android:id="@+id/wifi_rows"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-        </ScrollView>
-
-        <TextView
-            android:id="@+id/wifi_forget"
-            android:layout_width="match_parent"
-            android:layout_height="82dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/cell_bg"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:paddingLeft="30dp"
-            android:text="取消保存网络"
-            android:textColor="@color/textColor"
-            android:textSize="34dp" />
     </LinearLayout>
 
     <com.jerry.ftvlaunch.ArrowsView

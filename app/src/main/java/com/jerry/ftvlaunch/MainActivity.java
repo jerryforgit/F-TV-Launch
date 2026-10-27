@@ -29,10 +29,7 @@ public class MainActivity extends Activity {
 
     private GridView grid;
     private HomeAdapter adapter;
-    private LinearLayout wifiPanel;
     private TextView tvDate, tvTime;
-    private TextView wifiSsid;
-    private LinearLayout wifiRows;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView hint;
     private boolean editMode;
@@ -62,9 +59,6 @@ public class MainActivity extends Activity {
         tvDate = findViewById(R.id.tv_date);
         tvTime = findViewById(R.id.tv_time);
         grid = findViewById(R.id.grid);
-        wifiPanel = findViewById(R.id.wifi_panel);
-        wifiSsid = findViewById(R.id.wifi_ssid);
-        wifiRows = findViewById(R.id.wifi_rows);
 
         hint = findViewById(R.id.hint);
         moveArrows = findViewById(R.id.move_arrows);
@@ -96,12 +90,8 @@ public class MainActivity extends Activity {
             try {
                 startActivity(i);
             } catch (RuntimeException e) {
-                toggleWifiPanel();
+                Toast.makeText(this, "没有可用的 Wi-Fi 设置", Toast.LENGTH_SHORT).show();
             }
-        });
-        findViewById(R.id.btn_network).setOnLongClickListener(v -> {
-            toggleWifiPanel();
-            return true;
         });
         findViewById(R.id.btn_transfer).setOnClickListener(v ->
                 startActivity(new Intent(this, FileTransferActivity.class)));
@@ -109,13 +99,11 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.btn_clean).setOnClickListener(v ->
                 startActivity(new Intent(this, CleanActivity.class)));
-        findViewById(R.id.wifi_forget).setOnClickListener(v -> forgetNetwork());
 
         try {
             Widgets.host(this).startListening();
         } catch (RuntimeException ignored) {
         }
-        requestWifiPermission();
         applyTheme();
         updateClock();
         grid.post(() -> {
@@ -310,28 +298,7 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK && wifiPanel.getVisibility() == View.VISIBLE) {
-            hideWifiPanel();
-            return true;
-        }
         return super.onKeyDown(keyCode, event);
-    }
-
-    private void requestWifiPermission() {
-        if (android.os.Build.VERSION.SDK_INT < 23) return;
-        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                == android.content.pm.PackageManager.PERMISSION_GRANTED) return;
-
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("读取 Wi-Fi 信息")
-                .setMessage("桌面的网络面板需要显示当前 Wi-Fi 名称、信号强度和 IP。"
-                        + "Android 8 以后把「Wi-Fi 名称」归类为位置信息，所以系统会要求定位权限——"
-                        + "本应用不会获取你的地理位置，也不会上传任何数据。\n\n"
-                        + "不授权也可以正常使用桌面，只是网络面板里的 Wi-Fi 名称会显示为未知。")
-                .setPositiveButton("继续授权", (d, w) ->
-                        requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 10))
-                .setNegativeButton("暂不", null)
-                .show();
     }
 
     private void focusFirstTile() {
@@ -438,8 +405,6 @@ public class MainActivity extends Activity {
         findViewById(R.id.root).setBackgroundColor(Theme.bg(this));
         tvDate.setTextColor(Theme.text(this));
         tvTime.setTextColor(Theme.text(this));
-        wifiPanel.setBackgroundColor(Theme.panel(this));
-        wifiSsid.setTextColor(Theme.text(this));
         for (int id : new int[]{R.id.btn_apps, R.id.btn_settings, R.id.btn_network,
                 R.id.btn_clean, R.id.btn_desktop_settings, R.id.btn_transfer}) {
             View v = findViewById(id);
@@ -532,39 +497,6 @@ public class MainActivity extends Activity {
     }
 
     // ---------------- 网络面板 ----------------
-
-    private void toggleWifiPanel() {
-        if (wifiPanel.getVisibility() == View.VISIBLE) {
-            hideWifiPanel();
-        } else {
-            showWifiPanel();
-        }
-    }
-
-    private void showWifiPanel() {
-        WifiDetails.fill(this, wifiSsid, wifiRows);
-        wifiPanel.setVisibility(View.VISIBLE);
-        wifiPanel.setTranslationX(wifiPanel.getWidth() == 0 ? 480 * getResources().getDisplayMetrics().density
-                : wifiPanel.getWidth());
-        wifiPanel.animate().translationX(0f).setDuration(180).start();
-        wifiPanel.requestFocus();
-    }
-
-    private void hideWifiPanel() {
-        wifiPanel.animate().translationX(wifiPanel.getWidth()).setDuration(150)
-                .withEndAction(() -> wifiPanel.setVisibility(View.GONE)).start();
-        grid.setSelection(0);
-        grid.requestFocus();
-    }
-
-    private void forgetNetwork() {
-        if (WifiDetails.forgetCurrent(this)) {
-            Toast.makeText(this, "已取消保存该网络", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "无法取消保存（系统限制）", Toast.LENGTH_SHORT).show();
-        }
-        WifiDetails.fill(this, wifiSsid, wifiRows);
-    }
 
     // ---------------- 网格 ----------------
 
