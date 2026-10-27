@@ -200,10 +200,11 @@ public class MainActivity extends Activity {
     };
 
     private String focusedPkg() {
-        for (int i = 0; i < adapter.getCount(); i++) {
+        int first = grid.getFirstVisiblePosition();
+        for (int i = 0; i < grid.getChildCount(); i++) {
             View child = grid.getChildAt(i);
             if (child != null && child.hasFocus()) {
-                AppRepo.App a = adapter.appAt(i);
+                AppRepo.App a = adapter.appAt(first + i);
                 return a == null ? Widgets.PLACEHOLDER : a.pkg;
             }
         }
@@ -406,14 +407,15 @@ public class MainActivity extends Activity {
 
     /** 当前格子高亮 + 四向箭头，其余变暗。 */
     private void updateMoveVisuals() {
-        View cell = grid.getChildAt(movingPos);
+        int first = grid.getFirstVisiblePosition();
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View c = grid.getChildAt(i);
+            c.setAlpha(first + i == movingPos ? 1f : 0.25f);
+        }
+        View cell = childForPosition(movingPos);
         if (cell == null) {
             moveArrows.setVisibility(View.GONE);
             return;
-        }
-        for (int i = 0; i < grid.getChildCount(); i++) {
-            View c = grid.getChildAt(i);
-            c.setAlpha(i == movingPos ? 1f : 0.25f);
         }
         findViewById(R.id.top_bar).setAlpha(0.25f);
 
@@ -454,6 +456,13 @@ public class MainActivity extends Activity {
         markSelected(Math.max(0, selectedPos));
     }
 
+    private View childForPosition(int pos) {
+        int first = grid.getFirstVisiblePosition();
+        int idx = pos - first;
+        if (idx < 0 || idx >= grid.getChildCount()) return null;
+        return grid.getChildAt(idx);
+    }
+
     private boolean isEmptySlot(int pos) {
         return pos >= 0 && pos < adapter.items.size() && HomeStore.EMPTY.equals(adapter.items.get(pos));
     }
@@ -469,14 +478,17 @@ public class MainActivity extends Activity {
     }
 
     private void markSelected(int pos) {
+        int first = grid.getFirstVisiblePosition();
         for (int i = 0; i < grid.getChildCount(); i++) {
+            int adapterPos = first + i;
             View c = grid.getChildAt(i);
-            boolean moving = editMode && i == movingPos;
+            boolean moving = editMode && adapterPos == movingPos;
+            if (!editMode) c.setAlpha(1f);
             if (c instanceof AppCell) {
-                ((AppCell) c).setHighlight(i == pos && !editMode);
+                ((AppCell) c).setHighlight(adapterPos == pos && !editMode);
                 ((AppCell) c).setMoving(moving);
             } else if (c instanceof WidgetCell) {
-                ((WidgetCell) c).setHighlight(i == pos);
+                ((WidgetCell) c).setHighlight(adapterPos == pos);
             }
         }
     }
