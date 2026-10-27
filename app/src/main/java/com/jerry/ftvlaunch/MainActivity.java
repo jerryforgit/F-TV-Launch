@@ -141,7 +141,13 @@ public class MainActivity extends Activity {
             grid.setSelection(lastSelected);
             markSelected(lastSelected);
             grid.requestFocus();
-        }, 150);
+        }, 200);
+        grid.postDelayed(() -> {
+            if (adapter.getCount() > 0) {
+                grid.setSelection(lastSelected);
+                markSelected(lastSelected);
+            }
+        }, 600);
         if (UiState.pendingMove != null) {
             enterEditMode(UiState.pendingMove);
             UiState.pendingMove = null;
@@ -279,6 +285,8 @@ public class MainActivity extends Activity {
                 getSharedPreferences("ui", MODE_PRIVATE).edit().putInt("sel", next).apply();
                 markSelected(next);
                 grid.setSelection(next);
+                final int target = next;
+                grid.postDelayed(() -> markSelected(target), 80);
             }
             return true;
         }
@@ -646,6 +654,9 @@ public class MainActivity extends Activity {
                 cellView = new AppCell(MainActivity.this);
             }
             cellView.bind((AppRepo.App) o);
+            // 复用的格子要恢复当前选中/移动状态，否则滚动后高亮会丢
+            cellView.setHighlight(!editMode && position == selectedPos);
+            cellView.setMoving(editMode && position == movingPos);
             return cellView;
         }
 
