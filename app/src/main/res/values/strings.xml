@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">F TV Launcher</string>
+    <string name="app_name">F TV桌面</string>
     <string name="my_apps">我的应用</string>
     <string name="settings">设置</string>
     <string name="network">网络</string>

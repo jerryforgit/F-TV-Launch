@@ -17,7 +17,7 @@
             android:id="@+id/title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="60dp"
+            android:layout_marginLeft="45dp"
             android:text="@string/my_apps"
             android:textColor="#FF4D4D4D"
             android:textSize="80dp" />
@@ -29,12 +29,12 @@
         android:layout_height="match_parent"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:horizontalSpacing="30dp"
+        android:horizontalSpacing="20dp"
         android:numColumns="5"
-        android:paddingLeft="60dp"
+        android:paddingLeft="45dp"
         android:paddingTop="30dp"
-        android:paddingRight="60dp"
+        android:paddingRight="45dp"
         android:paddingBottom="30dp"
         android:scrollbars="none"
-        android:verticalSpacing="30dp" />
+        android:verticalSpacing="20dp" />
 </LinearLayout>

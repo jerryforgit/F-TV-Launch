@@ -318,11 +318,20 @@ public class MainActivity extends Activity {
     }
 
     private void requestWifiPermission() {
-        if (android.os.Build.VERSION.SDK_INT >= 23
-                && checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 10);
-        }
+        if (android.os.Build.VERSION.SDK_INT < 23) return;
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("读取 Wi-Fi 信息")
+                .setMessage("桌面的网络面板需要显示当前 Wi-Fi 名称、信号强度和 IP。"
+                        + "Android 8 以后把「Wi-Fi 名称」归类为位置信息，所以系统会要求定位权限——"
+                        + "本应用不会获取你的地理位置，也不会上传任何数据。\n\n"
+                        + "不授权也可以正常使用桌面，只是网络面板里的 Wi-Fi 名称会显示为未知。")
+                .setPositiveButton("继续授权", (d, w) ->
+                        requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 10))
+                .setNegativeButton("暂不", null)
+                .show();
     }
 
     private void focusFirstTile() {
@@ -612,7 +621,8 @@ public class MainActivity extends Activity {
         @Override
         public long getItemId(int position) {
             Object o = items.get(position);
-            return Widgets.PLACEHOLDER.equals(o) ? Long.MIN_VALUE : ((AppRepo.App) o).pkg.hashCode();
+            if (o instanceof AppRepo.App) return ((AppRepo.App) o).pkg.hashCode();
+            return o == null ? 0 : o.hashCode() + 1000003L;
         }
 
         @Override
