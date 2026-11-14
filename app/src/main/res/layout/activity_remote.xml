@@ -78,6 +78,20 @@
             android:textSize="28dp" />
 
         <TextView
+            android:id="@+id/remote_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="86dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/cell_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingLeft="28dp"
+            android:text="允许悬浮光标（体感遥控需要）"
+            android:textColor="@color/textColor"
+            android:textSize="28dp" />
+
+        <TextView
             android:id="@+id/remote_reset"
             android:layout_width="match_parent"
             android:layout_height="86dp"

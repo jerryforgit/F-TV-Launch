@@ -35,6 +35,7 @@ final class ControlServer {
     private volatile boolean running;
     private volatile String mode = "unknown"; // root / a11y / limited
     private final Handler main = new Handler(Looper.getMainLooper());
+    private CursorOverlay cursor;
 
     private static ControlServer instance;
 
@@ -45,6 +46,7 @@ final class ControlServer {
 
     ControlServer(Context c) {
         this.ctx = c.getApplicationContext();
+        this.cursor = new CursorOverlay(c);
     }
 
     static String localIp() {
@@ -209,6 +211,15 @@ final class ControlServer {
         if (path.equals("/api/launch")) {
             return Response.json(launch(param(query, "pkg")));
         }
+        if (path.equals("/api/cursor")) {
+            return Response.json(cursor(param(query, "show")));
+        }
+        if (path.equals("/api/move")) {
+            return Response.json(move(param(query, "dx"), param(query, "dy")));
+        }
+        if (path.equals("/api/click")) {
+            return Response.json(click());
+        }
         return Response.json("{\"ok\":false,\"error\":\"not found\"}");
     }
 
@@ -272,6 +283,35 @@ final class ControlServer {
         am.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0));
         am.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0));
         return ok();
+    }
+
+    private String cursor(String show) {
+        if ("1".equals(show)) {
+            if (!cursor.canShow()) return err("需要允许「显示在其他应用上层」");
+            cursor.show();
+        } else {
+            cursor.hide();
+        }
+        return "{\"ok\":true,\"shown\":" + cursor.isShown() + "}";
+    }
+
+    private String move(String dx, String dy) {
+        try {
+            cursor.move(Double.parseDouble(dx), Double.parseDouble(dy));
+            return ok();
+        } catch (Exception e) {
+            return err("bad delta");
+        }
+    }
+
+    private String click() {
+        int[] p = cursor.pos();
+        if ("root".equals(mode)) {
+            return runRoot("input tap " + p[0] + " " + p[1]) ? ok() : err("root failed");
+        }
+        RemoteA11yService svc = RemoteA11yService.get();
+        if (svc != null && svc.tap(p[0], p[1])) return ok();
+        return err("点击需要 root 或无障碍服务");
     }
 
     private String launch(String pkg) {
@@ -403,7 +443,11 @@ h2{font-size:13px;color:#8a909a;margin:16px 0 8px;font-weight:500}
 </style>
 </head>
 <body>
-<header><h1>F TV 遥控</h1><span id="mode">连接中…</span></header>
+<header><h1>F TV 遥控</h1>
+<div style="display:flex;gap:8px;align-items:center">
+<button id="gyro" style="padding:6px 12px;font-size:12px">体感</button>
+<button id="cur" style="padding:6px 12px;font-size:12px">光标</button>
+<span id="mode">连接中…</span></div></header>
 
 <div id="pad"><div class="hint">触控板<br>滑动 = 方向 · 点按 = OK<br>双击 = 返回 · 长按 = 菜单</div></div>
 
@@ -481,6 +525,7 @@ pad.addEventListener('touchmove',e=>{
 },{passive:true});
 pad.addEventListener('touchend',e=>{
   clearTimeout(timer);pad.classList.remove('active');
+  if(gyro){api('click');return}
   if(moved)return;
   const now=Date.now();
   if(now-lastTap<280){dk('BACK');lastTap=0;return}
@@ -505,6 +550,43 @@ async function apps(){
   });
 }
 apps();
+
+// ---- 体感（安卓测试可用；iOS 需要 HTTPS 才能拿陀螺仪）----
+let gyro=false,gx=null,gy=null,lastSend=0,cursorOn=false;
+$('gyro').addEventListener('click',toggleGyro);
+$('cur').addEventListener('click',async()=>{
+  cursorOn=!cursorOn;
+  const r=await api('cursor','show='+(cursorOn?1:0));
+  if(r&&!r.ok){toast(r.error||'无法显示光标');cursorOn=false;return}
+  $('cur').style.background=cursorOn?'#2f6bff':'';
+});
+async function toggleGyro(){
+  if(gyro){
+    gyro=false;window.removeEventListener('deviceorientation',onOrient,true);
+    $('gyro').style.background='';
+    pad.querySelector('.hint').textContent='触控板\n滑动 = 方向 · 点按 = OK\n双击 = 返回 · 长按 = 菜单';
+    return;
+  }
+  if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){
+    try{const p=await DeviceOrientationEvent.requestPermission();if(p!=='granted'){toast('没有陀螺仪权限');return}}
+    catch(e){toast('iOS 需要 HTTPS 才能用体感');return}
+  }
+  gyro=true;gx=gy=null;
+  window.addEventListener('deviceorientation',onOrient,true);
+  $('gyro').style.background='#2f6bff';
+  pad.querySelector('.hint').textContent='体感模式\n倾斜手机移动光标 · 点按 = 点击';
+  if(!cursorOn){cursorOn=true;api('cursor','show=1');$('cur').style.background='#2f6bff'}
+}
+function onOrient(e){
+  if(!gyro||e.gamma==null)return;
+  const nx=e.gamma,ny=e.beta;
+  if(gx===null){gx=nx;gy=ny;return}
+  const dx=nx-gx,dy=ny-gy;gx=nx;gy=ny;
+  const now=Date.now();if(now-lastSend<35)return;lastSend=now;
+  if(Math.abs(dx)<0.03&&Math.abs(dy)<0.03)return;
+  const k=3.2;
+  api('move','dx='+(dx*k).toFixed(2)+'&dy='+(dy*k).toFixed(2));
+}
 </script>
 </body>
 </html>

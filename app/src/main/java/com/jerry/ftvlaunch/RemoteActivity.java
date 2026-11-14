@@ -35,6 +35,8 @@ public class RemoteActivity extends Activity {
         findViewById(R.id.remote_reset).setBackground(Theme.rowBackground(this));
         ((TextView) findViewById(R.id.remote_a11y)).setTextColor(Theme.text(this));
         ((TextView) findViewById(R.id.remote_reset)).setTextColor(Theme.text(this));
+        ((TextView) findViewById(R.id.remote_overlay)).setTextColor(Theme.text(this));
+        findViewById(R.id.remote_overlay).setBackground(Theme.rowBackground(this));
 
         ControlServer.get(this).start();
 
@@ -42,6 +44,15 @@ public class RemoteActivity extends Activity {
             try {
                 startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
             } catch (RuntimeException ignored) {
+            }
+        });
+        findViewById(R.id.remote_overlay).setOnClickListener(v -> {
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                try {
+                    startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:" + getPackageName())));
+                } catch (RuntimeException ignored) {
+                }
             }
         });
         findViewById(R.id.remote_reset).setOnClickListener(v -> {
