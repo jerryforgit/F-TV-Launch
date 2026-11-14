@@ -12,4 +12,5 @@
     <string name="boot_off">取消开机启动</string>
     <string name="uninstall">卸载应用</string>
     <string name="wifi_detail">网络详情</string>
+    <string name="a11y_desc">让手机遥控可以发送返回、主页等系统操作（不需要 root 时的降级通道）</string>
 </resources>

@@ -116,6 +116,7 @@ public class MainActivity extends Activity {
             Widgets.host(this).startListening();
         } catch (RuntimeException ignored) {
         }
+        ControlServer.get(this).start();
         applyTheme();
         updateClock();
         grid.post(() -> {

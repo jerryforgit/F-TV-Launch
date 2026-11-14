@@ -29,7 +29,8 @@ public class SettingsActivity extends Activity {
         findViewById(R.id.root_settings).setBackgroundColor(Theme.bg(this));
         ((android.widget.TextView) findViewById(R.id.hint_settings)).setTextColor(Theme.subText(this));
         for (int id : new int[]{R.id.row_delay, R.id.row_boot_count, R.id.row_wallpaper,
-                R.id.row_wallpaper_reset, R.id.row_widget, R.id.row_widget_remove, R.id.row_dark}) {
+                R.id.row_wallpaper_reset, R.id.row_widget, R.id.row_widget_remove, R.id.row_dark,
+                R.id.row_remote}) {
             android.view.View v = findViewById(id);
             if (v instanceof android.widget.TextView) {
                 android.widget.TextView tv = (android.widget.TextView) v;
@@ -72,6 +73,8 @@ public class SettingsActivity extends Activity {
             Theme.setDark(this, !Theme.isDark(this));
             recreate();
         });
+        findViewById(R.id.row_remote).setOnClickListener(v ->
+                startActivity(new Intent(this, RemoteActivity.class)));
         findViewById(R.id.row_widget).setOnClickListener(v -> pickWidget());
         findViewById(R.id.row_widget_remove).setOnClickListener(v -> {
             java.util.List<String> home = HomeStore.loadHome(this);

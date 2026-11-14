@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_remote"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:padding="50dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/remote_qr"
+            android:layout_width="330dp"
+            android:layout_height="330dp"
+            android:background="#FFFFFFFF"
+            android:padding="12dp" />
+
+        <TextView
+            android:id="@+id/remote_url"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:textColor="@color/textColor"
+            android:textSize="26dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingLeft="50dp">
+
+        <TextView
+            android:id="@+id/remote_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="手机遥控"
+            android:textColor="@color/textColor"
+            android:textSize="44dp" />
+
+        <TextView
+            android:id="@+id/remote_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:lineSpacingExtra="6dp"
+            android:text="手机扫码打开网页，就可以当遥控器用。\n配对一次即可，之后把它添加到手机主屏，下次直接打开。"
+            android:textColor="#FF8A8A8A"
+            android:textSize="26dp" />
+
+        <TextView
+            android:id="@+id/remote_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textColor="@color/textColor"
+            android:textSize="26dp" />
+
+        <TextView
+            android:id="@+id/remote_a11y"
+            android:layout_width="match_parent"
+            android:layout_height="86dp"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/cell_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingLeft="28dp"
+            android:text="开启无障碍（没有 root 时用于返回/主页）"
+            android:textColor="@color/textColor"
+            android:textSize="28dp" />
+
+        <TextView
+            android:id="@+id/remote_reset"
+            android:layout_width="match_parent"
+            android:layout_height="86dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/cell_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingLeft="28dp"
+            android:text="重新生成配对码（旧手机需重新扫码）"
+            android:textColor="@color/textColor"
+            android:textSize="28dp" />
+    </LinearLayout>
+</LinearLayout>
