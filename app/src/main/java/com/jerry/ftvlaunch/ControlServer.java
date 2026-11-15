@@ -67,18 +67,31 @@ final class ControlServer {
     static String token(Context c) {
         SharedPreferences sp = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String t = sp.getString(KEY_TOKEN, null);
-        if (t == null) {
+        if (t == null || !t.matches("[0-9]{6}")) {
             t = newToken(c);
         }
         return t;
     }
 
+    /** 6 位数字配对码，好读好输；配错多次会被临时限制。 */
     static String newToken(Context c) {
-        StringBuilder sb = new StringBuilder();
-        Random r = new Random();
-        for (int i = 0; i < 12; i++) sb.append("0123456789abcdef".charAt(r.nextInt(16)));
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_TOKEN, sb.toString()).apply();
-        return sb.toString();
+        int n = new Random().nextInt(1000000);
+        String t = String.format(java.util.Locale.US, "%06d", n);
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_TOKEN, t).apply();
+        return t;
+    }
+
+    // 防止 6 位数字被穷举：60 秒内错 15 次就暂停响应
+    private int badAttempts;
+    private long badWindowStart;
+
+    private boolean authBlocked() {
+        long now = System.currentTimeMillis();
+        if (now - badWindowStart > 60000) {
+            badWindowStart = now;
+            badAttempts = 0;
+        }
+        return badAttempts >= 15;
     }
 
     void start() {
@@ -123,6 +136,22 @@ final class ControlServer {
         } catch (Exception ignored) {
         }
         mode = "a11y";
+    }
+
+    private static volatile String jsqrCache;
+
+    private String asset(String name) {
+        if (jsqrCache != null) return jsqrCache;
+        try (java.io.InputStream in = ctx.getAssets().open(name)) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            jsqrCache = new String(out.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+            return jsqrCache;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void handle(Socket socket) {
@@ -184,6 +213,9 @@ final class ControlServer {
                             "\"start_url\":\"/?t=" + token(ctx) + "\""),
                     "application/manifest+json");
         }
+        if (path.equals("/jsqr.js")) {
+            return Response.js(asset("jsqr.js"));
+        }
         if (path.equals("/sw.js")) {
             return Response.js(SW);
         }
@@ -195,9 +227,14 @@ final class ControlServer {
         }
 
         String t = param(query, "t");
+        if (authBlocked()) {
+            return Response.json("{\"ok\":false,\"error\":\"too many attempts\"}");
+        }
         if (!token(ctx).equals(t)) {
+            badAttempts++;
             return Response.json("{\"ok\":false,\"error\":\"token\"}");
         }
+        badAttempts = 0;
         if (path.equals("/api/status")) {
             return Response.json("{\"ok\":true,\"mode\":\"" + mode + "\",\"a11y\":"
                     + RemoteA11yService.isEnabled() + "}");
@@ -528,11 +565,16 @@ h2{font-size:13px;color:#8a909a;margin:16px 0 8px;font-weight:500}
 <span id="mode">连接中…</span></div></header>
 
 <div id="pair" style="display:none">
-  <h2>手动配对</h2>
+  <h2>配对</h2>
   <div class="row" style="grid-template-columns:1fr auto">
-    <input id="code" placeholder="输入电视上显示的配对码" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <input id="code" placeholder="6 位配对码" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false">
     <button id="pairOk">连接</button>
   </div>
+  <div class="row" style="grid-template-columns:1fr">
+    <button id="pairShot">拍照识别二维码</button>
+  </div>
+  <input id="shot" type="file" accept="image/*" capture="environment" style="display:none">
+  <div style="color:#5c626d;font-size:12px;margin-top:6px">6 位配对码可以在电视「显示配对码」里看到；也可以直接拍电视上的二维码</div>
 </div>
 
 <div id="pad"><div class="hint">触控板<br>滑动 = 方向 · 点按 = OK<br>双击 = 返回 · 长按 = 菜单</div></div>
@@ -587,6 +629,10 @@ async function api(p,extra){
     const r=await fetch(u,{cache:'no-store'});
     if(!r.ok&&r.status!==200){toast('电视返回错误 '+r.status);return null}
     const j=await r.json();
+    if(j&&j.error==='too many attempts'){
+      toast('试太多次了，等 1 分钟再试');
+      return null;
+    }
     if(j&&j.error==='token'){
       toast('配对码已失效，请在电视上重新配对');
       localStorage.removeItem('ftv_token');token='';showPair(true);
@@ -679,7 +725,7 @@ $('pairBtnTop').addEventListener('click',()=>{
   showPair($('pair').style.display==='none');
 });
 $('pairOk').addEventListener('click',async()=>{
-  const v=$('code').value.trim().toLowerCase().split(' ').join('');
+  const v=$('code').value.trim().split(' ').join('');
   if(!v){toast('请输入电视上显示的配对码');return}
   if(await checkToken(v)){
     token=v;localStorage.setItem('ftv_token',v);
@@ -689,6 +735,51 @@ $('pairOk').addEventListener('click',async()=>{
   }
 });
 $('code').addEventListener('keydown',e=>{if(e.key==='Enter')$('pairOk').click()});
+
+// 拍照识别：不需要 HTTPS，用系统相机拍一张再在页面里解码
+function loadJSQR(){
+  return new Promise((res,rej)=>{
+    if(window.jsQR)return res();
+    const s=document.createElement('script');
+    s.src='/jsqr.js';
+    s.onload=()=>window.jsQR?res():rej(new Error('x'));
+    s.onerror=()=>rej(new Error('x'));
+    document.head.appendChild(s);
+  });
+}
+$('pairShot').addEventListener('click',async()=>{
+  try{await loadJSQR()}catch(e){toast('识别组件加载失败');return}
+  $('shot').click();
+});
+$('shot').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(!f)return;
+  try{await loadJSQR()}catch(err){toast('识别组件加载失败');e.target.value='';return}
+  const img=new Image();
+  img.onload=()=>{
+    const max=1200;
+    const k=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+    const g=c.getContext('2d');g.drawImage(img,0,0,c.width,c.height);
+    let hit=null;
+    try{
+      const d=g.getImageData(0,0,c.width,c.height);
+      hit=jsQR(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});
+    }catch(err){}
+    URL.revokeObjectURL(img.src);
+    e.target.value='';
+    if(!hit||!hit.data){toast('没识别到二维码，靠近点、拍清楚一点');return}
+    let code='';
+    try{code=(new URL(hit.data)).searchParams.get('t')||''}catch(err){code=hit.data}
+    code=String(code).trim();
+    if(!/^[0-9]{6}$/.test(code)){toast('这个二维码不是本机的');return}
+    $('code').value=code;
+    $('pairOk').click();
+  };
+  img.onerror=()=>{toast('图片打不开');e.target.value=''};
+  img.src=URL.createObjectURL(f);
+});
 
 $('send').addEventListener('click',async()=>{
   const v=$('txt').value.trim();if(!v)return;
