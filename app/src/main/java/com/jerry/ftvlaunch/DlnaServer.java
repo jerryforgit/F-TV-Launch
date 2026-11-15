@@ -503,6 +503,16 @@ final class DlnaServer {
         });
     }
 
+    /** 外部直接播一个链接（手机遥控页的「链接投屏」）。 */
+    static void playUrl(Context c, String uri) {
+        String title = uri;
+        try {
+            title = android.net.Uri.parse(uri).getLastPathSegment();
+        } catch (Exception ignored) {
+        }
+        get(c).openPlayer(uri, title == null ? "" : title);
+    }
+
     private void openPlayer(String uri, String title) {
         if (uri == null || uri.isEmpty()) return;
         main.post(() -> {

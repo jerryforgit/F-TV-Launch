@@ -257,6 +257,9 @@ final class ControlServer {
         if (path.equals("/api/launch")) {
             return Response.json(launch(param(query, "pkg")));
         }
+        if (path.equals("/api/play")) {
+            return Response.json(play(param(query, "url")));
+        }
         if (path.equals("/api/cursor")) {
             return Response.json(cursor(param(query, "show")));
         }
@@ -369,6 +372,16 @@ final class ControlServer {
         long now = android.os.SystemClock.uptimeMillis();
         am.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0));
         am.dispatchMediaKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0));
+        return ok();
+    }
+
+    private String play(String url) {
+        if (url == null || url.isEmpty()) return err("no url");
+        String u = url.trim();
+        if (!u.startsWith("http://") && !u.startsWith("https://")) {
+            return err("只支持 http/https 链接");
+        }
+        DlnaServer.playUrl(ctx, u);
         return ok();
     }
 
@@ -597,6 +610,12 @@ h2{font-size:13px;color:#8a909a;margin:16px 0 8px;font-weight:500}
   <button data-m="vol_up">音量 +</button>
 </div>
 
+<h2>链接投屏</h2>
+<div class="row" style="grid-template-columns:1fr auto">
+  <input id="url" placeholder="粘贴视频/音乐直链（http/https）" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <button id="playUrl">播放</button>
+</div>
+
 <h2>键盘输入</h2>
 <div class="row" style="grid-template-columns:1fr auto">
   <input id="txt" placeholder="输入文字后发送到电视" autocomplete="off">
@@ -780,6 +799,14 @@ $('shot').addEventListener('change',async e=>{
   img.onerror=()=>{toast('图片打不开');e.target.value=''};
   img.src=URL.createObjectURL(f);
 });
+
+$('playUrl').addEventListener('click',async()=>{
+  const v=$('url').value.trim();
+  if(!v)return;
+  const r=await api('play','url='+encodeURIComponent(v));
+  if(r&&r.ok){toast('已发送到电视');$('url').value=''}else toast(r&&r.error?r.error:'发送失败');
+});
+$('url').addEventListener('keydown',e=>{if(e.key==='Enter')$('playUrl').click()});
 
 $('send').addEventListener('click',async()=>{
   const v=$('txt').value.trim();if(!v)return;
