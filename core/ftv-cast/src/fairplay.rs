@@ -41,6 +41,52 @@ pub fn fp_setup(request: &[u8]) -> Option<Vec<u8>> {
     }
 }
 
+/// `/fp-setup` 会话状态。
+///
+/// 参考实现把 fp-setup 的请求体保存在连接对象里，等 SDP/ANNOUNCE 带来 72 字节
+/// `FPLY...` AES key 时再用它解密。这里做同样的保存：
+/// - seq 1：返回 4 张固定响应表之一，不保存；
+/// - seq 3：返回 12 字节 FPLY 头 + 请求末尾 20 字节，并保存 164 字节请求体。
+///
+/// 保存的请求体就是 [`crate::fairplay3::decrypt_aes_key`] 的 `message3`。
+#[derive(Default)]
+pub struct FpSession {
+    key_msg: Option<Vec<u8>>,
+}
+
+impl FpSession {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 处理一次 `/fp-setup` 请求；返回值与 [`fp_setup`] 相同。
+    pub fn handle(&mut self, request: &[u8]) -> Option<Vec<u8>> {
+        let out = fp_setup(request)?;
+        if request.len() >= 8 && request[5] == 1 && request[6] == 3 {
+            if request.len() == crate::fairplay3::FP_KEY_MSG_LEN {
+                self.key_msg = Some(request.to_vec());
+            } else {
+                log::warn!(
+                    "fp-setup seq3 长度 {}，不是预期的 {}，无法用于解密 AES key",
+                    request.len(),
+                    crate::fairplay3::FP_KEY_MSG_LEN
+                );
+            }
+        }
+        Some(out)
+    }
+
+    /// 已保存的 164 字节 FPLY 数据块（用于后续 SDP 的 AES key 解密）。
+    pub fn key_msg(&self) -> Option<&[u8]> {
+        self.key_msg.as_deref()
+    }
+
+    /// 用本会话保存的 keymsg 解密 72 字节 FairPlay AES key。
+    pub fn decrypt_aes_key(&self, cipher_text: &[u8]) -> Option<[u8; 16]> {
+        crate::fairplay3::decrypt_aes_key(self.key_msg.as_deref()?, cipher_text)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,5 +127,43 @@ mod tests {
         let mut req = request(1, 1, 0);
         req[4] = 2;
         assert!(fp_setup(&req).is_none());
+    }
+
+    fn seq3_vector() -> (Vec<u8>, Vec<u8>, &'static str) {
+        use crate::fairplay3::{test_vectors::AES_CASES, unhex};
+        let case = AES_CASES
+            .iter()
+            .find(|c| c.name == "fp-seq3")
+            .expect("缺少 fp-seq3 向量");
+        (unhex(case.message), unhex(case.cipher), case.final_key)
+    }
+
+    #[test]
+    fn session_keeps_seq3_body_for_aes_key() {
+        use crate::fairplay3::{decrypt_aes_key, hex};
+
+        let (request, cipher, expected_key) = seq3_vector();
+        assert_eq!(request.len(), crate::fairplay3::FP_KEY_MSG_LEN);
+
+        let mut session = FpSession::new();
+        let response = session.handle(&request).expect("seq3 应有响应");
+        assert_eq!(response.len(), 12 + SETUP2_RESPONSE_SUFFIX_LEN);
+        assert_eq!(&response[..12], &FP_HEADER);
+
+        assert_eq!(session.key_msg(), Some(request.as_slice()));
+        let key = session.decrypt_aes_key(&cipher).expect("应能解密");
+        assert_eq!(hex(&key), expected_key);
+        // 与直接调用底层函数一致。
+        assert_eq!(Some(key), decrypt_aes_key(&request, &cipher));
+    }
+
+    #[test]
+    fn seq1_does_not_clobber_saved_keymsg() {
+        let (seq3, _, _) = seq3_vector();
+        let mut session = FpSession::new();
+        assert!(session.handle(&seq3).is_some());
+        let saved = session.key_msg().unwrap().to_vec();
+        assert!(session.handle(&request(1, 1, 2)).is_some());
+        assert_eq!(session.key_msg().unwrap(), saved.as_slice());
     }
 }

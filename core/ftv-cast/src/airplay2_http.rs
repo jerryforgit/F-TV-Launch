@@ -1,6 +1,7 @@
 //! AirPlay 2 的 HTTP/RTSP 配对端点：`POST /pair-setup`、`POST /pair-verify`。
 
 use crate::airplay2;
+use crate::fairplay::FpSession;
 use crate::pairing::{PairSetup, PairVerify};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -13,6 +14,7 @@ struct Ctx {
     identity_pub: [u8; 32],
     setup: Mutex<Option<PairSetup>>,
     verify: Mutex<Option<PairVerify>>,
+    fp: Mutex<FpSession>,
 }
 
 /// 在指定端口上提供配对端点（端口 0 表示随机）。
@@ -26,6 +28,7 @@ pub fn spawn(port: u16) -> std::io::Result<u16> {
         identity_pub,
         setup: Mutex::new(None),
         verify: Mutex::new(None),
+        fp: Mutex::new(FpSession::new()),
     });
     thread::spawn(move || {
         for stream in listener.incoming().flatten() {
@@ -93,11 +96,13 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
             }
             (200, "application/octet-stream", out)
         }
-        ("POST", "/fp-setup") => (
-            200,
-            "application/octet-stream",
-            crate::fairplay::fp_setup(&body).unwrap_or_default(),
-        ),
+        ("POST", "/fp-setup") => {
+            // seq3 的 164 字节请求体要留着：SDP/ANNOUNCE 里的 72 字节
+            // FairPlay AES key 需要它才能解密。
+            let mut guard = ctx.fp.lock().unwrap();
+            let out = guard.handle(&body).unwrap_or_default();
+            (200, "application/octet-stream", out)
+        },
         ("POST", "/auth-setup") => (403, "text/plain", b"no fairplay".to_vec()),
         _ => (404, "text/plain", b"not found".to_vec()),
     };
@@ -202,5 +207,29 @@ mod tests {
         let port = spawn(0).unwrap();
         let resp = post(port, "/nope", b"");
         assert_eq!(resp, b"not found");
+    }
+
+    #[test]
+    fn fp_setup_endpoint_serves_seq1_and_seq3() {
+        use crate::fairplay3::{test_vectors::AES_CASES, unhex};
+
+        let port = spawn(0).unwrap();
+        let mut seq1 = b"FPLY".to_vec();
+        seq1.extend_from_slice(&[3, 1, 1, 0, 0, 0, 0, 0, 0, 0]);
+        seq1.push(2); // mode
+        seq1.push(0);
+        let resp1 = post(port, "/fp-setup", &seq1);
+        assert_eq!(resp1.len(), 142);
+        assert_eq!(&resp1[..4], b"FPLY");
+
+        let case = AES_CASES
+            .iter()
+            .find(|c| c.name == "fp-seq3")
+            .expect("缺少 fp-seq3 向量");
+        let seq3 = unhex(case.message);
+        let resp2 = post(port, "/fp-setup", &seq3);
+        assert_eq!(resp2.len(), 32);
+        assert_eq!(&resp2[..12], b"FPLY\x03\x01\x04\x00\x00\x00\x00\x14");
+        assert_eq!(&resp2[12..], &seq3[seq3.len() - 20..]);
     }
 }
