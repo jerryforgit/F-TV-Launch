@@ -64,6 +64,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
     }
 
     let (code, ctype, payload) = match (method.as_str(), path.as_str()) {
+        ("GET", "/info") => (200, "application/x-apple-binary-plist", info_plist(&ctx.device_id)),
         ("POST", "/pair-setup") => {
             let mut guard = ctx.setup.lock().unwrap();
             let setup = guard.get_or_insert_with(|| PairSetup::new(airplay2::PAIRING_PASSWORD));
@@ -95,6 +96,26 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
     s.flush()
 }
 
+fn info_plist(device_id: &[u8]) -> Vec<u8> {
+    use plist::{Dictionary, Value};
+    let mut d = Dictionary::new();
+    d.insert("deviceID".into(), Value::String(String::from_utf8_lossy(device_id).to_string()));
+    d.insert("features".into(), Value::Integer((crate::airplay2::FEATURES as i64).into()));
+    d.insert("flags".into(), Value::Integer(0x4i64.into()));
+    d.insert("model".into(), Value::String("AppleTV3,2".into()));
+    d.insert("protovers".into(), Value::String("1.0".into()));
+    d.insert("srcvers".into(), Value::String("220.68".into()));
+    d.insert("vv".into(), Value::Integer(2i64.into()));
+    d.insert("pi".into(), Value::String("b8b7c5a1-2f3c-4d5e-9a1b-3c4d5e6f7a8b".into()));
+    // AirPlay 2 的设备公钥（Ed25519）
+    let (_sk, pk) = crate::crypto::ed25519_keypair();
+    d.insert("pk".into(), Value::Data(pk.to_vec()));
+    d.insert("name".into(), Value::String("F TV 桌面".into()));
+    let mut out = Vec::new();
+    Value::Dictionary(d).to_writer_binary(&mut out).expect("plist");
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,6 +145,23 @@ mod tests {
         assert_eq!(tlv8::get(&items, tlv8::STATE), Some(&[2u8][..]));
         assert_eq!(tlv8::get(&items, 0x02).unwrap().len(), 16);
         assert_eq!(tlv8::get(&items, tlv8::PUBLIC_KEY).unwrap().len(), 384);
+    }
+
+    #[test]
+    fn info_returns_binary_plist() {
+        let port = spawn(0).unwrap();
+        let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        s.write_all(b"GET /info HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut buf = Vec::new();
+        s.read_to_end(&mut buf).unwrap();
+        let split = buf.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        let body = &buf[split..];
+        assert!(body.starts_with(b"bplist00"), "应是二进制 plist");
+        let v = plist::Value::from_reader(std::io::Cursor::new(body)).unwrap();
+        let d = v.as_dictionary().unwrap();
+        assert!(d.contains_key("features"));
+        assert!(d.contains_key("pk"));
+        assert_eq!(d.get("model").unwrap().as_string(), Some("AppleTV3,2"));
     }
 
     #[test]
