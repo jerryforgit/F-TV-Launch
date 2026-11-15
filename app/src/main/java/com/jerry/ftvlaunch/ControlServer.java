@@ -135,6 +135,11 @@ final class ControlServer {
             String[] parts = requestLine.split(" ");
             if (parts.length < 2) return;
             String path = parts[1];
+            String ua = "";
+            for (String line : header.split("\r\n")) {
+                if (line.toLowerCase().startsWith("user-agent:")) ua = line.substring(11).trim();
+            }
+            android.util.Log.d("FTVHTTP", parts[0] + " " + path + " UA=" + ua);
             respond(s, route(path));
         } catch (Exception ignored) {
         }
@@ -567,7 +572,13 @@ async function api(p,extra){
       localStorage.removeItem('ftv_token');token=null;return null;
     }
     return j;
-  }catch(e){toast('电视没有响应');return null}
+  }catch(e){
+    const msg=(e&&e.message)?e.message:'网络错误';
+    const m=document.getElementById('mode');
+    if(m){m.textContent='连接失败: '+msg;m.style.color='#ff6b6b'}
+    toast('电视没有响应: '+msg);
+    return null;
+  }
 }
 async function status(){
   const s=await api('ping');
@@ -646,7 +657,7 @@ async function toggleGyro(){
   if(gyro){
     gyro=false;window.removeEventListener('deviceorientation',onOrient,true);
     $('gyro').style.background='';
-    pad.querySelector('.hint').textContent='触控板\n滑动 = 方向 · 点按 = OK\n双击 = 返回 · 长按 = 菜单';
+    pad.querySelector('.hint').textContent='触控板'+String.fromCharCode(10)+'滑动 = 方向 · 点按 = OK'+String.fromCharCode(10)+'双击 = 返回 · 长按 = 菜单';
     return;
   }
   if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){
@@ -656,7 +667,7 @@ async function toggleGyro(){
   gyro=true;gx=gy=null;
   window.addEventListener('deviceorientation',onOrient,true);
   $('gyro').style.background='#2f6bff';
-  pad.querySelector('.hint').textContent='体感模式\n倾斜手机移动光标 · 点按 = 点击';
+  pad.querySelector('.hint').textContent='体感模式'+String.fromCharCode(10)+'倾斜手机移动光标 · 点按 = 点击';
   if(!cursorOn){cursorOn=true;api('cursor','show=1');$('cur').style.background='#2f6bff'}
 }
 function onOrient(e){
