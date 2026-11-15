@@ -492,11 +492,11 @@ final class ControlServer {
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:-apple-system,system-ui,sans-serif;background:#14161B;color:#e8e8e8;
-     padding:14px 14px 24px;touch-action:manipulation;user-select:none}
+     padding:14px 14px 24px;touch-action:manipulation;user-select:none;overscroll-behavior:none}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 h1{font-size:17px;margin:0;font-weight:600}
 #mode{font-size:12px;color:#9aa0aa;border:1px solid #2b2f38;border-radius:99px;padding:3px 9px}
-#pad{position:relative;height:36vh;min-height:220px;border-radius:20px;background:#1b1e24;
+#pad{position:relative;height:36vh;min-height:220px;border-radius:20px;background:#1b1e24;touch-action:none;
      border:1px solid #2b2f38;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #pad .hint{color:#5c626d;font-size:13px;text-align:center;line-height:1.6}
 #pad.active{background:#20242c}
@@ -600,11 +600,13 @@ const pad=$('pad');
 let sx=0,sy=0,lx=0,ly=0,moved=false,lastT=0,timer=null,lastTap=0;
 function dk(k){key(k)}
 pad.addEventListener('touchstart',e=>{
+  e.preventDefault();
   const t=e.touches[0];sx=lx=t.clientX;sy=ly=t.clientY;moved=false;pad.classList.add('active');
   clearTimeout(timer);
   timer=setTimeout(()=>{if(!moved){dk('MENU');navigator.vibrate&&navigator.vibrate(20)}},650);
-},{passive:true});
+},{passive:false});
 pad.addEventListener('touchmove',e=>{
+  e.preventDefault();
   const t=e.touches[0],dx=t.clientX-lx,dy=t.clientY-ly;
   if(Math.abs(t.clientX-sx)>8||Math.abs(t.clientY-sy)>8)moved=true;
   const step=46;
@@ -615,15 +617,16 @@ pad.addEventListener('touchmove',e=>{
     if(dy>step){dk('DOWN');ly=t.clientY}
     else if(dy<-step){dk('UP');ly=t.clientY}
   }
-},{passive:true});
+},{passive:false});
 pad.addEventListener('touchend',e=>{
+  e.preventDefault();
   clearTimeout(timer);pad.classList.remove('active');
   if(gyro){api('click');return}
   if(moved)return;
   const now=Date.now();
   if(now-lastTap<280){dk('BACK');lastTap=0;return}
   lastTap=now;dk('OK');
-},{passive:true});
+},{passive:false});
 
 $('send').addEventListener('click',async()=>{
   const v=$('txt').value.trim();if(!v)return;
