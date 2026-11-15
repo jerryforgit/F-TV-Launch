@@ -6,6 +6,7 @@ pub mod airplay2;
 pub mod airplay2_http;
 pub mod crypto;
 pub mod dlna;
+pub mod fairplay;
 pub mod http;
 pub mod mdns;
 pub mod pairing;

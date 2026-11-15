@@ -65,7 +65,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
             }
         }
     }
-    log::info!("airplay2 {method} {path} len={len}");
+    log::info!("airplay2 {method} {path:?} len={len}");
     let mut body = vec![0u8; len];
     if len > 0 {
         reader.read_exact(&mut body)?;
@@ -93,6 +93,11 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
             }
             (200, "application/octet-stream", out)
         }
+        ("POST", "/fp-setup") => (
+            200,
+            "application/octet-stream",
+            crate::fairplay::fp_setup(&body).unwrap_or_default(),
+        ),
         ("POST", "/auth-setup") => (403, "text/plain", b"no fairplay".to_vec()),
         _ => (404, "text/plain", b"not found".to_vec()),
     };

@@ -19,6 +19,9 @@ final class RustCast {
     /** 启动 AirPlay 2 配对端点，返回端口（<0 失败）。 */
     static native int startAirplay2();
 
+    /** 设备 Ed25519 公钥（hex）。 */
+    static native String identityPk();
+
     static native void stop();
 
     private RustCast() {

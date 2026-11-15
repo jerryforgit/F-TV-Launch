@@ -15,6 +15,7 @@ struct BridgeSink;
 static STATE: OnceLock<Shared> = OnceLock::new();
 static RUNNING: OnceLock<Arc<AtomicBool>> = OnceLock::new();
 static EVENTS: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
+static IDENTITY_PK: OnceLock<String> = OnceLock::new();
 
 fn state() -> &'static Shared {
     STATE.get_or_init(|| Arc::new(Mutex::new(State::new())))
@@ -154,6 +155,17 @@ pub extern "C" fn ftv_cast_set_stopped() {
 
 /// 启动 AirPlay 2 配对端点，返回端口（<0 表示失败）。
 #[no_mangle]
+/// 返回设备 Ed25519 公钥（hex），供 `_airplay._tcp` 的 pk 使用。
+#[no_mangle]
+pub extern "C" fn ftv_cast_identity_pk() -> *mut c_char {
+    let pk = IDENTITY_PK.get_or_init(|| {
+        let (_sk, pk) = ftv_cast::crypto::ed25519_keypair();
+        pk.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    });
+    CString::new(pk.clone()).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
 pub extern "C" fn ftv_cast_start_airplay2() -> i32 {
     init_log();
     let port = ftv_cast::airplay2_http::spawn(5000)
@@ -243,6 +255,23 @@ mod jni_bridge {
         _class: JClass,
     ) {
         super::ftv_cast_set_stopped();
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_jerry_ftvlaunch_RustCast_identityPk(
+        env: JNIEnv,
+        _class: JClass,
+    ) -> jstring {
+        let p = super::ftv_cast_identity_pk();
+        if p.is_null() {
+            return std::ptr::null_mut();
+        }
+        let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().to_string();
+        super::ftv_cast_free(p);
+        match env.new_string(s) {
+            Ok(js) => js.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
     }
 
     #[no_mangle]

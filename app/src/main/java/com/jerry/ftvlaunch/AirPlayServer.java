@@ -161,7 +161,12 @@ final class AirPlayServer {
             mdns.addTxt("vs", "130.14");
             mdns.addTxt("am", "F TV 桌面");
             mdns.addTxt("sf", "0x4");
-            if (pkHex != null) mdns.addTxt("pk", pkHex);
+            String edPk = null;
+            try {
+                edPk = RustCast.identityPk();
+            } catch (Throwable ignored) {
+            }
+            if (edPk != null && edPk.length() == 64) mdns.addTxt("pk", edPk);
             mdns.start();
             Log.i(TAG, "mDNS started, pk=" + (pkHex == null ? 0 : pkHex.length()));
         } catch (Exception e) {
@@ -182,13 +187,20 @@ final class AirPlayServer {
             MdnsAdvertiser mdns = new MdnsAdvertiser("F TV 桌面", "_airplay._tcp.local",
                     airplay2Port, localIp());
             mdns.addTxt("deviceid", macColon);
-            mdns.addTxt("features", "0x5A7FFFF7,0x1E");
+            mdns.addTxt("features", "0x527FFEF7,0x8");
             mdns.addTxt("flags", "0x4");
-            mdns.addTxt("model", "AppleTV3,2");
+            mdns.addTxt("model", "AppleTV3,1");
+            mdns.addTxt("rmodel", "AirReceiver3,1");
+            mdns.addTxt("pw", "0");
             mdns.addTxt("pi", "b8b7c5a1-2f3c-4d5e-9a1b-3c4d5e6f7a8b");
-            mdns.addTxt("srcvers", "220.68");
+            mdns.addTxt("srcvers", "211.3");
             mdns.addTxt("vv", "2");
-            if (pkHex != null) mdns.addTxt("pk", pkHex);
+            String edPk = null;
+            try {
+                edPk = RustCast.identityPk();
+            } catch (Throwable ignored) {
+            }
+            if (edPk != null && edPk.length() == 64) mdns.addTxt("pk", edPk);
             mdns.start();
             Log.i(TAG, "AirPlay2 mDNS started");
         } catch (Exception e) {
