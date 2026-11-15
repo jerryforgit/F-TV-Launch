@@ -4,8 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
-import android.media.MediaCodec;
-import android.media.MediaFormat;
 import android.util.Base64;
 import android.util.Log;
 
@@ -550,30 +548,31 @@ final class AirPlayServer {
 
     private final class AudioSink {
         private final ArrayDeque<byte[]> queue = new ArrayDeque<>();
-        private MediaCodec codec;
         private AudioTrack track;
+        private long decoder;
         private Thread worker;
         private volatile boolean alive;
         private volatile boolean paused;
         private volatile float gain = 1f;
-        private long presentationUs;
-        private int sampleRate = 44100;
+        private int chosenOffset = 4;
+        private boolean offsetChecked;
 
         void start() {
             if (alive) return;
             alive = true;
             try {
-                MediaFormat fmt = MediaFormat.createAudioFormat("audio/alac", 44100, 2);
-                fmt.setByteBuffer("csd-0", ByteBuffer.wrap(alacCookie()));
-                codec = MediaCodec.createDecoderByType("audio/alac");
-                codec.configure(fmt, null, null, 0);
-                codec.start();
-
+                decoder = AlacNative.create(alacCookie());
+                int ch = decoder != 0 ? AlacNative.channels(decoder) : 2;
+                int frame = decoder != 0 ? AlacNative.frameLength(decoder) : 352;
+                Log.i(TAG, "ALAC decoder=" + decoder + " ch=" + ch + " frame=" + frame);
+                if (decoder == 0) {
+                    Log.e(TAG, "ALAC decoder init failed");
+                }
                 int minBuf = AudioTrack.getMinBufferSize(44100,
                         AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
                 track = new AudioTrack(android.media.AudioManager.STREAM_MUSIC, 44100,
                         AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
-                        Math.max(minBuf * 4, 44100), AudioTrack.MODE_STREAM);
+                        Math.max(minBuf * 4, 8192), AudioTrack.MODE_STREAM);
                 track.play();
                 worker = new Thread(this::loop, "airplay-audio");
                 worker.start();
@@ -592,7 +591,9 @@ final class AirPlayServer {
         }
 
         private void loop() {
-            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+            byte[] frameBuf = new byte[8192];
+            byte[] pcm = new byte[8192];
+            int lastLog = 0;
             while (alive) {
                 byte[] packet;
                 synchronized (queue) {
@@ -606,34 +607,35 @@ final class AirPlayServer {
                     packet = queue.pollFirst();
                 }
                 try {
-                    // RAOP：解密后的载荷前 4 字节是音频头，其后是 ALAC 帧
-                    int off = 4;
-                    if (packet.length <= off) continue;
-                    int inIdx = codec.dequeueInputBuffer(20000);
-                    if (inIdx >= 0) {
-                        ByteBuffer buf = codec.getInputBuffer(inIdx);
-                        buf.clear();
-                        buf.put(packet, off, packet.length - off);
-                        codec.queueInputBuffer(inIdx, 0, packet.length - off, presentationUs, 0);
-                        presentationUs += 352L * 1000000L / sampleRate;
-                    }
-                    int outIdx;
-                    while ((outIdx = codec.dequeueOutputBuffer(info, 0)) >= 0) {
-                        ByteBuffer out = codec.getOutputBuffer(outIdx);
-                        if (out != null && info.size > 0 && !paused) {
-                            byte[] pcm = new byte[info.size];
-                            out.get(pcm);
-                            if (gain != 1f) {
-                                for (int i = 0; i + 1 < pcm.length; i += 2) {
-                                    int v = (short) ((pcm[i] & 0xFF) | (pcm[i + 1] << 8));
-                                    v = (int) (v * gain);
-                                    pcm[i] = (byte) v;
-                                    pcm[i + 1] = (byte) (v >> 8);
-                                }
+                    if (decoder == 0) continue;
+                    int samples = -1;
+                    if (!offsetChecked) {
+                        for (int off : new int[]{4, 0, 8}) {
+                            if (packet.length <= off + 4) continue;
+                            int len = packet.length - off;
+                            System.arraycopy(packet, off, frameBuf, 0, len);
+                            samples = AlacNative.decode(decoder, frameBuf, len, pcm);
+                            Log.d(TAG, "try offset " + off + " -> samples=" + samples);
+                            if (samples > 0) {
+                                chosenOffset = off;
+                                offsetChecked = true;
+                                break;
                             }
-                            track.write(pcm, 0, pcm.length);
                         }
-                        codec.releaseOutputBuffer(outIdx, false);
+                    } else {
+                        int len = Math.max(0, packet.length - chosenOffset);
+                        System.arraycopy(packet, chosenOffset, frameBuf, 0, len);
+                        samples = AlacNative.decode(decoder, frameBuf, len, pcm);
+                    }
+                    if (samples > 0 && !paused) {
+                        int bytes = Math.min(samples * 2 * 2, pcm.length);
+                        track.write(pcm, 0, bytes);
+                        if (lastLog++ % 200 == 0) {
+                            Log.d(TAG, "played samples=" + samples + " offset=" + chosenOffset);
+                        }
+                    } else if (samples < 0 && lastLog++ % 50 == 0) {
+                        Log.w(TAG, "alac decode err " + samples + " len=" + packet.length
+                                + " head=" + hex(packet, 8));
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "decode error", e);
@@ -653,11 +655,7 @@ final class AirPlayServer {
             synchronized (queue) {
                 queue.clear();
             }
-            try {
-                codec.flush();
-            } catch (Exception ignored) {
-            }
-            presentationUs = 0;
+            offsetChecked = false;
         }
 
         void setVolumeDb(float db) {
@@ -681,31 +679,28 @@ final class AirPlayServer {
                 }
             } catch (Exception ignored) {
             }
-            try {
-                if (codec != null) {
-                    codec.stop();
-                    codec.release();
-                }
-            } catch (Exception ignored) {
+            if (decoder != 0) {
+                AlacNative.destroy(decoder);
+                decoder = 0;
             }
         }
 
         private byte[] alacCookie() {
             ByteBuffer b = ByteBuffer.allocate(36);
-            b.putInt(36);              // atom size
+            b.putInt(36);
             b.put("alac".getBytes(StandardCharsets.US_ASCII));
-            b.putInt(0);               // version + flags
-            b.putInt(352);             // frame length
-            b.put((byte) 0);           // compatible version
-            b.put((byte) 16);          // bit depth
-            b.put((byte) 40);          // pb
-            b.put((byte) 10);          // mb
-            b.put((byte) 14);          // kb
-            b.put((byte) 2);           // channels
-            b.putShort((short) 255);   // max run
-            b.putInt(0);               // max frame bytes
-            b.putInt(0);               // avg bit rate
-            b.putInt(44100);           // sample rate
+            b.putInt(0);
+            b.putInt(352);
+            b.put((byte) 0);
+            b.put((byte) 16);
+            b.put((byte) 40);
+            b.put((byte) 10);
+            b.put((byte) 14);
+            b.put((byte) 2);
+            b.putShort((short) 255);
+            b.putInt(0);
+            b.putInt(0);
+            b.putInt(44100);
             return b.array();
         }
     }
