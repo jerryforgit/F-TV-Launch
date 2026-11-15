@@ -47,6 +47,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
     let path = it.next().unwrap_or("").to_string();
 
     let mut len = 0usize;
+    let mut cseq = String::from("0");
     loop {
         let mut line = String::new();
         if reader.read_line(&mut line)? == 0 {
@@ -59,6 +60,8 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
         if let Some((k, v)) = t.split_once(':') {
             if k.eq_ignore_ascii_case("content-length") {
                 len = v.trim().parse().unwrap_or(0);
+            } else if k.eq_ignore_ascii_case("cseq") {
+                cseq = v.trim().to_string();
             }
         }
     }
@@ -94,8 +97,9 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
         _ => (404, "text/plain", b"not found".to_vec()),
     };
 
+    // AirPlay 2 用的是 RTSP：响应必须是 RTSP/1.0 并回显 CSeq
     let head = format!(
-        "HTTP/1.1 {code} OK\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "RTSP/1.0 {code} OK\r\nCSeq: {cseq}\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         payload.len()
     );
     s.write_all(head.as_bytes())?;
