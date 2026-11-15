@@ -4,6 +4,7 @@
 
 pub mod airplay2;
 pub mod airplay2_http;
+pub mod audio_out;
 pub mod crypto;
 pub mod dlna;
 pub mod fairplay;

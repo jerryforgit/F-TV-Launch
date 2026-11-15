@@ -26,6 +26,7 @@ public class App extends Application {
             }
         }, "rust-airplay2").start();
         AirPlayServer.get(this).start();
+        AirPlay2Audio.start();
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityResumed(Activity a) {

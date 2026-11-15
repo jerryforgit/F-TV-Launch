@@ -22,6 +22,9 @@ final class RustCast {
     /** 设备 Ed25519 公钥（hex）。 */
     static native String identityPk();
 
+    /** 取 AirPlay 2 实时 PCM（16-bit 交错），返回写入的 short 数量。 */
+    static native int takeAudio(short[] out);
+
     static native void stop();
 
     private RustCast() {

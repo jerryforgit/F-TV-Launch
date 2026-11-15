@@ -182,6 +182,23 @@ pub extern "C" fn ftv_cast_start_airplay2() -> i32 {
     }
 }
 
+/// 取一段 AirPlay 2 实时 PCM（16-bit 交错）。返回写入的 i16 数量。
+#[no_mangle]
+pub extern "C" fn ftv_cast_take_audio(out: *mut i16, max_samples: i32) -> i32 {
+    if out.is_null() || max_samples <= 0 {
+        return 0;
+    }
+    let dst = unsafe { std::slice::from_raw_parts_mut(out, max_samples as usize) };
+    ftv_cast::audio_out::take(dst) as i32
+}
+
+/// 当前 PCM 格式：高 32 位采样率，低 32 位声道数。
+#[no_mangle]
+pub extern "C" fn ftv_cast_audio_format() -> i64 {
+    let (rate, channels) = ftv_cast::audio_out::format();
+    ((rate as i64) << 32) | channels as i64
+}
+
 #[no_mangle]
 pub extern "C" fn ftv_cast_stop() {
     if let Some(r) = RUNNING.get() {
@@ -191,7 +208,7 @@ pub extern "C" fn ftv_cast_stop() {
 
 #[cfg(target_os = "android")]
 mod jni_bridge {
-    use jni::objects::{JClass, JString};
+    use jni::objects::{JClass, JShortArray, JString};
     use jni::sys::{jint, jlong, jstring};
     use jni::JNIEnv;
     use std::ffi::{c_char, CStr, CString};
@@ -280,6 +297,21 @@ mod jni_bridge {
         _class: JClass,
     ) -> jint {
         super::ftv_cast_start_airplay2()
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_jerry_ftvlaunch_RustCast_takeAudio(
+        mut env: JNIEnv,
+        _class: JClass,
+        out: JShortArray,
+    ) -> jint {
+        let len = env.get_array_length(&out).unwrap_or(0) as usize;
+        let mut buf = vec![0i16; len];
+        let n = super::ftv_cast_take_audio(buf.as_mut_ptr(), len as i32);
+        if n > 0 {
+            let _ = env.set_short_array_region(&out, 0, &buf[..n as usize]);
+        }
+        n
     }
 
     #[no_mangle]

@@ -192,6 +192,11 @@ impl PairVerify {
     pub fn session_key(&self) -> Option<[u8; 32]> {
         self.session_key
     }
+
+    /// 原始 X25519 共享秘密（AirPlay 2 音频 key 派生用：SHA512(FairPlay key || 它)）。
+    pub fn shared_secret(&self) -> Option<[u8; 32]> {
+        self.secret
+    }
 }
 
 #[cfg(test)]
