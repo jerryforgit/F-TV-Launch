@@ -27,8 +27,9 @@ Android TV 桌面（Java）+ 自研投屏核心（Rust）：**DLNA 完整可用*
 - `/fp-setup`（**FairPlay 3**，移植自 openairplay，`core/ftv-cast/src/fairplay3/`）
 - `/pair-setup`（SRP-6a 3072/SHA-512，口令 `Pair-Setup`/`3939`）
 - `/pair-verify`（X25519 + Ed25519 + ChaCha20-Poly1305，含验签）
-- `/audio` buffered audio + ALAC 解码（NDK 自带 Apple 解码器）——**已能出声**（另一会话完成）
-- 当前正在完善：SDP/`/setup` 字段、延迟与同步、稳定性
+- `/setup`：按**真实抓包**实现（`ekey`/`eiv` 解密 + `streams` 端口协商）— `d79d8e5`
+- `/audio`：实时 UDP 音频解密（AES-CBC）+ ALAC 解码 + AudioTrack 出声 — `f3068de`（**已出声**）
+- 当前正在完善：延迟/同步、断连重连、音量与元数据、稳定性
 
 ### 测试
 - `cargo test`：40+ 单测（TLV8、密码学、SRP、配对、FairPlay3、DLNA、mDNS）
