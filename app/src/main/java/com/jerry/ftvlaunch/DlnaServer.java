@@ -264,12 +264,14 @@ final class DlnaServer {
 
     private String desc() {
         return "<?xml version=\"1.0\"?>"
-                + "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+                + "<root xmlns=\"urn:schemas-upnp-org:device-1-0\""
+                + " xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\">"
                 + "<specVersion><major>1</major><minor>0</minor></specVersion>"
                 + "<device>"
                 + "<deviceType>" + DEVICE_TYPE + "</deviceType>"
                 + "<friendlyName>F TV 桌面</friendlyName>"
                 + "<manufacturer>F TV Launcher</manufacturer>"
+                + "<dlna:X_DLNADOC>DMR-1.50</dlna:X_DLNADOC>"
                 + "<modelName>F TV Launcher</modelName>"
                 + "<modelNumber>1</modelNumber>"
                 + "<UDN>uuid:" + uuid + "</UDN>"
@@ -373,7 +375,7 @@ final class DlnaServer {
     private String soapAvt(String action, String body) {
         switch (action) {
             case "SetAVTransportURI": {
-                currentUri = xmlArg(body, "CurrentURI");
+                currentUri = unesc(xmlArg(body, "CurrentURI"));
                 currentMeta = xmlArg(body, "CurrentURIMetaData").replace("&lt;", "<")
                         .replace("&gt;", ">").replace("&amp;", "&");
                 durationMs = 0;
@@ -577,6 +579,11 @@ final class DlnaServer {
         } catch (Exception ignored) {
         }
         return 0;
+    }
+
+    private static String unesc(String s) {
+        return s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+                .replace("&amp;", "&");
     }
 
     private static String esc(String s) {
