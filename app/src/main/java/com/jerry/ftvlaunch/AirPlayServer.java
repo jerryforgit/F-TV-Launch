@@ -70,7 +70,6 @@ final class AirPlayServer {
         mac = hardwareAddress();
         new Thread(() -> rtspLoop(RTSP_PORT), "airplay-rtsp").start();
         registerMdns();
-        startAirplay2();
     }
 
     // ---------------- 密钥 ----------------
@@ -149,7 +148,7 @@ final class AirPlayServer {
             mdns.addTxt("txtvers", "1");
             mdns.addTxt("ch", "2");
             mdns.addTxt("cn", "0,1");
-            mdns.addTxt("et", "0,4");
+            mdns.addTxt("et", "0");
             mdns.addTxt("sv", "false");
             mdns.addTxt("da", "true");
             mdns.addTxt("sr", "44100");
