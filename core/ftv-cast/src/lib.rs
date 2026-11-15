@@ -7,6 +7,7 @@ pub mod dlna;
 pub mod http;
 pub mod mdns;
 pub mod ssdp;
+pub mod tlv8;
 
 /// 一次投屏会话的公共状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
