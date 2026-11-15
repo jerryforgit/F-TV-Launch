@@ -44,7 +44,7 @@ final class AirPlayServer {
 
     private static final String TAG = "AirPlay";
     private static final int RTSP_PORT = 5000;
-    private static final int AIRPLAY2_PORT = 7100;
+    private volatile int airplay2Port;
 
     private static AirPlayServer instance;
 
@@ -69,9 +69,8 @@ final class AirPlayServer {
         loadKeys();
         mac = hardwareAddress();
         new Thread(() -> rtspLoop(RTSP_PORT), "airplay-rtsp").start();
-        new Thread(() -> rtspLoop(AIRPLAY2_PORT), "airplay2-rtsp").start();
         registerMdns();
-        registerAirPlay2Mdns();
+        startAirplay2();
     }
 
     // ---------------- 密钥 ----------------
@@ -177,7 +176,7 @@ final class AirPlayServer {
         try {
             String macColon = mac.replaceAll("(..)(?!$)", "$1:");
             MdnsAdvertiser mdns = new MdnsAdvertiser("F TV 桌面", "_airplay._tcp.local",
-                    AIRPLAY2_PORT, localIp());
+                    airplay2Port, localIp());
             mdns.addTxt("deviceid", macColon);
             mdns.addTxt("features", "0x5A7FFFF7,0x1E");
             mdns.addTxt("flags", "0x4");
@@ -194,6 +193,29 @@ final class AirPlayServer {
     }
 
     // ---------------- RTSP ----------------
+
+    /** AirPlay 2 用随机空闲端口（7000/7100 已被盒子上的其他投屏 App 占用）。 */
+    private void startAirplay2() {
+        try {
+            ServerSocket ss = new ServerSocket(0);
+            airplay2Port = ss.getLocalPort();
+            Log.i(TAG, "AirPlay2 listening " + airplay2Port);
+            new Thread(() -> serve(ss, "airplay2-rtsp"), "airplay2-rtsp").start();
+            registerAirPlay2Mdns();
+        } catch (Exception e) {
+            Log.e(TAG, "airplay2 bind failed", e);
+        }
+    }
+
+    private void serve(ServerSocket server, String name) {
+        try {
+            while (running) {
+                Socket s = server.accept();
+                new Thread(() -> handleRtsp(s), name).start();
+            }
+        } catch (IOException ignored) {
+        }
+    }
 
     private void rtspLoop(int port) {
         try {

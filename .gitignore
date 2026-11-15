@@ -10,3 +10,4 @@
 .cxx
 
 core/target/
+app/src/main/jniLibs/
