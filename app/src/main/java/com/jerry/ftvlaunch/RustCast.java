@@ -16,6 +16,9 @@ final class RustCast {
 
     static native void setStopped();
 
+    /** 启动 AirPlay 2 配对端点，返回端口（<0 失败）。 */
+    static native int startAirplay2();
+
     static native void stop();
 
     private RustCast() {

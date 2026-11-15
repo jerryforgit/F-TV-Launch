@@ -170,6 +170,12 @@ final class AirPlayServer {
         }
     }
 
+    /** 用 Rust 配对端点的端口广播 _airplay._tcp。 */
+    void advertiseAirplay2(int port) {
+        airplay2Port = port;
+        registerAirPlay2Mdns();
+    }
+
     /** AirPlay 2 的服务记录（iOS 17 走这个通道）。 */
     private void registerAirPlay2Mdns() {
         try {
