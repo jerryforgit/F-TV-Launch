@@ -85,6 +85,19 @@ pub struct PairVerify {
 }
 
 impl PairVerify {
+    /// 用指定的长期身份密钥创建（保证 /info 里的 pk 与配对一致）。
+    pub fn with_key(device_id: &[u8], sk: ed25519_dalek::SigningKey) -> Self {
+        Self {
+            client_ltpk: None,
+            client_pub: None,
+            secret: None,
+            server_pub: [0; 32],
+            signing: sk,
+            device_id: device_id.to_vec(),
+            session_key: None,
+        }
+    }
+
     pub fn new(device_id: &[u8]) -> Self {
         let (sk, _pk) = crypto::ed25519_keypair();
         Self {

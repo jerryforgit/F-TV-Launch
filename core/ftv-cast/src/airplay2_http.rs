@@ -9,6 +9,8 @@ use std::thread;
 
 struct Ctx {
     device_id: Vec<u8>,
+    identity: ed25519_dalek::SigningKey,
+    identity_pub: [u8; 32],
     setup: Mutex<Option<PairSetup>>,
     verify: Mutex<Option<PairVerify>>,
 }
@@ -17,8 +19,11 @@ struct Ctx {
 pub fn spawn(port: u16) -> std::io::Result<u16> {
     let listener = TcpListener::bind(("0.0.0.0", port))?;
     let actual = listener.local_addr()?.port();
+    let (identity, identity_pub) = crate::crypto::ed25519_keypair();
     let ctx = Arc::new(Ctx {
-        device_id: b"F-TV-Desktop".to_vec(),
+        device_id: b"AA:BB:CC:DD:EE:FF".to_vec(),
+        identity,
+        identity_pub,
         setup: Mutex::new(None),
         verify: Mutex::new(None),
     });
@@ -64,7 +69,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
     }
 
     let (code, ctype, payload) = match (method.as_str(), path.as_str()) {
-        ("GET", "/info") => (200, "application/x-apple-binary-plist", info_plist(&ctx.device_id)),
+        ("GET", "/info") => (200, "application/x-apple-binary-plist", info_plist(&ctx.device_id, &ctx.identity_pub)),
         ("POST", "/pair-setup") => {
             let mut guard = ctx.setup.lock().unwrap();
             let setup = guard.get_or_insert_with(|| PairSetup::new(airplay2::PAIRING_PASSWORD));
@@ -76,7 +81,9 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
         }
         ("POST", "/pair-verify") => {
             let mut guard = ctx.verify.lock().unwrap();
-            let verify = guard.get_or_insert_with(|| PairVerify::new(&ctx.device_id));
+            let verify = guard.get_or_insert_with(|| {
+                PairVerify::with_key(&ctx.device_id, ctx.identity.clone())
+            });
             let out = verify.handle(&body);
             if verify.session_key().is_some() {
                 *guard = None;
@@ -96,7 +103,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
     s.flush()
 }
 
-fn info_plist(device_id: &[u8]) -> Vec<u8> {
+fn info_plist(device_id: &[u8], pk: &[u8; 32]) -> Vec<u8> {
     use plist::{Dictionary, Value};
     let mut d = Dictionary::new();
     d.insert("deviceID".into(), Value::String(String::from_utf8_lossy(device_id).to_string()));
@@ -108,7 +115,6 @@ fn info_plist(device_id: &[u8]) -> Vec<u8> {
     d.insert("vv".into(), Value::Integer(2i64.into()));
     d.insert("pi".into(), Value::String("b8b7c5a1-2f3c-4d5e-9a1b-3c4d5e6f7a8b".into()));
     // AirPlay 2 的设备公钥（Ed25519）
-    let (_sk, pk) = crate::crypto::ed25519_keypair();
     d.insert("pk".into(), Value::Data(pk.to_vec()));
     d.insert("name".into(), Value::String("F TV 桌面".into()));
     let mut out = Vec::new();
