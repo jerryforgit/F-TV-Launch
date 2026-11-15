@@ -57,6 +57,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
             }
         }
     }
+    log::info!("airplay2 {method} {path} len={len}");
     let mut body = vec![0u8; len];
     if len > 0 {
         reader.read_exact(&mut body)?;

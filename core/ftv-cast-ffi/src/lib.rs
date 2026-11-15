@@ -58,6 +58,22 @@ impl Sink for BridgeSink {
     }
 }
 
+#[cfg(target_os = "android")]
+fn init_log() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        android_logger::init_once(
+            android_logger::Config::default()
+                .with_tag("FtvCast")
+                .with_max_level(log::LevelFilter::Debug),
+        );
+    });
+}
+
+#[cfg(not(target_os = "android"))]
+fn init_log() {}
+
 fn cstr(p: *const c_char) -> String {
     if p.is_null() {
         return String::new();
@@ -73,6 +89,7 @@ pub extern "C" fn ftv_cast_start(
     udn: *const c_char,
     name: *const c_char,
 ) -> i32 {
+    init_log();
     let ip = cstr(ip);
     let udn = cstr(udn);
     let name = cstr(name);
@@ -138,6 +155,7 @@ pub extern "C" fn ftv_cast_set_stopped() {
 /// 启动 AirPlay 2 配对端点，返回端口（<0 表示失败）。
 #[no_mangle]
 pub extern "C" fn ftv_cast_start_airplay2() -> i32 {
+    init_log();
     let port = ftv_cast::airplay2_http::spawn(5000)
         .or_else(|_| ftv_cast::airplay2_http::spawn(0));
     match port {
