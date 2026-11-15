@@ -77,6 +77,16 @@
                 android:nextFocusDown="@id/grid"
                 android:text="传文件" />
 
+            <com.jerry.ftvlaunch.IconButton
+                android:id="@+id/btn_remote"
+                android:layout_width="90dp"
+                android:layout_height="110dp"
+                android:layout_marginLeft="30dp"
+                android:layout_marginTop="10dp"
+                android:icon="@drawable/ic_remote"
+                android:nextFocusDown="@id/grid"
+                android:text="手机遥控" />
+
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"

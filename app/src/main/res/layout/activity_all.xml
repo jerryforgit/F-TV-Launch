@@ -4,13 +4,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg"
-    android:clipChildren="false"
-    android:clipToPadding="false"
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/all_title_bar"
         android:layout_width="match_parent"
         android:layout_height="120dp"
+        android:background="@color/bg"
+        android:elevation="12dp"
         android:orientation="horizontal">
 
         <TextView
@@ -27,8 +28,7 @@
         android:id="@+id/grid"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipChildren="false"
-        android:clipToPadding="false"
+        android:clipToPadding="true"
         android:horizontalSpacing="20dp"
         android:numColumns="5"
         android:paddingLeft="45dp"

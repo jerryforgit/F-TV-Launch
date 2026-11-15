@@ -77,6 +77,11 @@ public class MainActivity extends Activity {
             }
         });
         grid.getViewTreeObserver().addOnScrollChangedListener(this::updateTopBarScrim);
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
+            if (editMode) return;
+            if (grid.hasFocus()) markSelected(selectedPos);
+            else clearHighlights();
+        });
         grid.setOnItemClickListener((parent, view, position, id) -> {
             if (editMode) {
                 exitEditMode();
@@ -106,6 +111,8 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "没有可用的 Wi-Fi 设置", Toast.LENGTH_SHORT).show();
             }
         });
+        findViewById(R.id.btn_remote).setOnClickListener(v ->
+                startActivity(new Intent(this, RemoteActivity.class)));
         findViewById(R.id.btn_transfer).setOnClickListener(v ->
                 startActivity(new Intent(this, FileTransferActivity.class)));
         findViewById(R.id.btn_desktop_settings).setOnClickListener(v ->
@@ -465,13 +472,22 @@ public class MainActivity extends Activity {
         tvDate.setTextColor(Theme.text(this));
         tvTime.setTextColor(Theme.text(this));
         for (int id : new int[]{R.id.btn_apps, R.id.btn_settings, R.id.btn_network,
-                R.id.btn_clean, R.id.btn_desktop_settings, R.id.btn_transfer}) {
+                R.id.btn_clean, R.id.btn_desktop_settings, R.id.btn_transfer, R.id.btn_remote}) {
             View v = findViewById(id);
             if (v instanceof IconButton) ((IconButton) v).applyTheme(this);
         }
         View bar = findViewById(R.id.top_bar);
         bar.setElevation(dp(12));
         bar.setOutlineProvider(null);
+    }
+
+    private void clearHighlights() {
+        int first = grid.getFirstVisiblePosition();
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View c = grid.getChildAt(i);
+            if (c instanceof AppCell) ((AppCell) c).setHighlight(false);
+            else if (c instanceof WidgetCell) ((WidgetCell) c).setHighlight(false);
+        }
     }
 
     private void markSelected() {
@@ -538,7 +554,7 @@ public class MainActivity extends Activity {
 
     private void focusTopBarForColumn(int pos) {
         int[] ids = {R.id.btn_apps, R.id.btn_settings, R.id.btn_network, R.id.btn_clean,
-                R.id.btn_desktop_settings, R.id.btn_transfer};
+                R.id.btn_desktop_settings, R.id.btn_remote};
         int col = pos % 5;
         int index = Math.min(col, ids.length - 1);
         View v = findViewById(ids[index]);

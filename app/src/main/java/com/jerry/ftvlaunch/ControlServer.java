@@ -258,9 +258,10 @@ final class ControlServer {
 
     private String key(String code) {
         if (code == null) return err("no code");
-        // 桌面自己在前台：直接投递按键，方向键/OK 全都能用（不需要 root）
-        final MainActivity act = MainActivity.current;
-        if (act != null && "launcher".equals(foreground())) {
+        // 桌面 / 应用抽屉自己在前台：直接投递按键，方向键/OK 全都能用（不需要 root）
+        final android.app.Activity act = MainActivity.current != null
+                ? MainActivity.current : AllAppsActivity.current;
+        if (act != null) {
             final int kc = keyCode(code);
             if (kc > 0) {
                 main.post(() -> {

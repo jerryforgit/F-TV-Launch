@@ -22,6 +22,8 @@ import java.util.List;
 
 public class AllAppsActivity extends Activity {
 
+    static AllAppsActivity current;
+
     private GridView grid;
     private final List<AppRepo.App> items = new ArrayList<>();
     private Adapter adapter;
@@ -58,10 +60,22 @@ public class AllAppsActivity extends Activity {
     }
 
     private void markSelected(int pos) {
+        int first = grid.getFirstVisiblePosition();
         for (int i = 0; i < grid.getChildCount(); i++) {
             View c = grid.getChildAt(i);
-            if (c instanceof AppCell) ((AppCell) c).setHighlight(i == pos);
+            if (c instanceof AppCell) ((AppCell) c).setHighlight(first + i == pos);
         }
+    }
+
+    /** 滚动停在半行时，把当前行顶对齐，避免上面露出一条被切一半的格子。 */
+    private void snapRow() {
+        if (grid.getChildCount() == 0) return;
+        int first = grid.getFirstVisiblePosition();
+        View fv = grid.getChildAt(0);
+        int top = fv == null ? 0 : fv.getTop();
+        if (first % 5 == 0 && top >= grid.getPaddingTop() - 1) return;
+        int rowStart = first - first % 5;
+        grid.smoothScrollToPositionFromTop(rowStart, 0, 120);
     }
 
     private void launch(int position) {
@@ -86,7 +100,7 @@ public class AllAppsActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
-        if (event.getAction() == KeyEvent.ACTION_DOWN && grid.hasFocus()
+        if (event.getAction() == KeyEvent.ACTION_DOWN
                 && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT
                 || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN)) {
             int count = items.size();
@@ -100,6 +114,11 @@ public class AllAppsActivity extends Activity {
                 selectedPos = next;
                 markSelected(next);
                 grid.setSelection(next);
+                final int target = next;
+                grid.postDelayed(() -> markSelected(target), 80);
+                if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    grid.postDelayed(this::snapRow, 40);
+                }
             }
             return true;
         }
@@ -133,9 +152,19 @@ public class AllAppsActivity extends Activity {
     }
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) grid.postDelayed(() -> markSelected(selectedPos), 60);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        current = this;
         findViewById(R.id.root_all).setBackgroundColor(Theme.bg(this));
+        findViewById(R.id.all_title_bar).setBackgroundColor(Theme.bg(this));
+        findViewById(R.id.all_title_bar).setElevation(dp(12));
+        findViewById(R.id.all_title_bar).setOutlineProvider(null);
         ((android.widget.TextView) findViewById(R.id.title)).setTextColor(Theme.text(this));
         items.clear();
         items.addAll(AppRepo.load(this));
@@ -145,6 +174,12 @@ public class AllAppsActivity extends Activity {
             grid.requestFocus();
             markSelected(selectedPos);
         }, 200);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (current == this) current = null;
     }
 
     private class Adapter extends BaseAdapter {
@@ -172,6 +207,7 @@ public class AllAppsActivity extends Activity {
                 cellView = new AppCell(AllAppsActivity.this);
             }
             cellView.bind(items.get(position));
+            cellView.setHighlight(position == selectedPos);
             return cellView;
         }
     }
