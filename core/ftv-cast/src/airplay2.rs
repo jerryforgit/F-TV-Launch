@@ -10,4 +10,4 @@ pub const PAIRING_PASSWORD: &[u8] = b"3939";
 
 /// AirPlay 2 在 `_airplay._tcp` 里声明的能力位。
 /// bit 38 = AirPlay 音频（AirPlay 2），bit 27 = 支持 legacy pairing。
-pub const FEATURES: u64 = (1 << 38) | (1 << 27) | (1 << 9) | (1 << 8);
+pub const FEATURES: u64 = 0x5A7F_FFF7_0000_001E;

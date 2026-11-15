@@ -108,15 +108,33 @@ fn info_plist(device_id: &[u8], pk: &[u8; 32]) -> Vec<u8> {
     let mut d = Dictionary::new();
     d.insert("deviceID".into(), Value::String(String::from_utf8_lossy(device_id).to_string()));
     d.insert("features".into(), Value::Integer((crate::airplay2::FEATURES as i64).into()));
-    d.insert("flags".into(), Value::Integer(0x4i64.into()));
+    d.insert("statusFlags".into(), Value::Integer(0x4i64.into()));
     d.insert("model".into(), Value::String("AppleTV3,2".into()));
+    d.insert("manufacturer".into(), Value::String("F TV".into()));
+    d.insert("name".into(), Value::String("F TV 桌面".into()));
+    d.insert("nameIsFactoryDefault".into(), Value::Boolean(false));
     d.insert("protovers".into(), Value::String("1.0".into()));
+    d.insert("protocolVersion".into(), Value::String("1.1".into()));
     d.insert("srcvers".into(), Value::String("220.68".into()));
+    d.insert("sourceVersion".into(), Value::String("220.68".into()));
+    d.insert("sdk".into(), Value::String("AirPlay;2.0.2".into()));
     d.insert("vv".into(), Value::Integer(2i64.into()));
     d.insert("pi".into(), Value::String("b8b7c5a1-2f3c-4d5e-9a1b-3c4d5e6f7a8b".into()));
-    // AirPlay 2 的设备公钥（Ed25519）
     d.insert("pk".into(), Value::Data(pk.to_vec()));
-    d.insert("name".into(), Value::String("F TV 桌面".into()));
+    d.insert("keepAliveLowPower".into(), Value::Boolean(true));
+    d.insert("keepAliveSendStatsAsBody".into(), Value::Boolean(true));
+
+    // 音频能力：AirPlay 2 必须给，否则会被判成不支持
+    let mut lat = Dictionary::new();
+    lat.insert("inputLatencyMicros".into(), Value::Integer(0i64.into()));
+    lat.insert("outputLatencyMicros".into(), Value::Integer(400000i64.into()));
+    d.insert("audioLatencies".into(), Value::Array(vec![Value::Dictionary(lat)]));
+
+    let mut formats = Dictionary::new();
+    formats.insert("audioStream".into(), Value::Integer(21235712i64.into()));
+    formats.insert("bufferStream".into(), Value::Integer(14680064i64.into()));
+    d.insert("supportedFormats".into(), Value::Dictionary(formats));
+
     let mut out = Vec::new();
     Value::Dictionary(d).to_writer_binary(&mut out).expect("plist");
     out
