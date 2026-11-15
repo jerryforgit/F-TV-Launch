@@ -182,8 +182,11 @@ public class DlnaPlayerActivity extends Activity {
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
-            if (!imageMode && prepared && video.isPlaying()) {
+            if (!imageMode && prepared) {
                 DlnaServer.positionMs = video.getCurrentPosition();
+                boolean playing = video.isPlaying();
+                RustCast.setProgress(video.getDuration() / 1000,
+                        video.getCurrentPosition() / 1000, playing ? 1 : 0);
             }
             handler.postDelayed(this, 500);
         }
@@ -220,6 +223,7 @@ public class DlnaPlayerActivity extends Activity {
             }
         }
         DlnaServer.transportState = "STOPPED";
+        RustCast.setStopped();
         finish();
     }
 

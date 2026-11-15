@@ -12,7 +12,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        DlnaServer.get(this).start();
+        RustDlna.start(this);
         AirPlayServer.get(this).start();
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
