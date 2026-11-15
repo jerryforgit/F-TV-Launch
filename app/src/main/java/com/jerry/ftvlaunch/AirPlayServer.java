@@ -229,7 +229,8 @@ final class AirPlayServer {
         if (method.equals("POST") && (uri.startsWith("/auth-setup")
                 || uri.startsWith("/pair-setup") || uri.startsWith("/pair-verify"))) {
             Log.i(TAG, "reject HAP pairing " + uri);
-            return "RTSP/1.0 403 Forbidden\r\nCSeq: " + cseq + "\r\n\r\n";
+            return "RTSP/1.0 403 Forbidden\r\nCSeq: " + cseq
+                    + "\r\nServer: AirTunes/130.14\r\n\r\n";
         }
         switch (method) {
             case "OPTIONS": {
@@ -239,8 +240,10 @@ final class AirPlayServer {
                     if (resp != null) extra = "Apple-Response: " + resp + "\r\n";
                 }
                 return "RTSP/1.0 200 OK\r\nCSeq: " + cseq + "\r\n"
+                        + "Server: AirTunes/130.14\r\n"
                         + "Public: ANNOUNCE, SETUP, RECORD, PAUSE, FLUSH, TEARDOWN, OPTIONS, "
                         + "GET_PARAMETER, SET_PARAMETER\r\n"
+                        + "Audio-Jack-Status: connected; type=analog\r\n"
                         + extra + "\r\n";
             }
             case "ANNOUNCE": {
