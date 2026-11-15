@@ -102,4 +102,28 @@ mod tests {
         assert!(decrypt_aes_key(&vec![0u8; 164], &vec![0u8; 71]).is_none());
         assert!(decrypt_aes_key(&vec![0u8; 164], &vec![0u8; 72]).is_some());
     }
+
+    /// 真实抓包（/tmp/ap3.pcap）：iPhone -> AirReceiver 的 /fp-setup seq3
+    /// 与随后 SETUP 里的 ekey/eiv。密钥由 Python 参考实现算出。
+    #[test]
+    fn decrypts_real_airplay2_capture() {
+        let message3 = unhex(
+            "46504c590301030000000098028f1a9c539c6a88f2c21187e5058607cca1ff770a75c5\
+             985940c44e702b56cc67c16822cc729efe9231398a7583f9dff9c724b2ed4098b48e50\
+             7bddf35b9705942a0f1fb619838adbb16a232b5aa6cbf420f76448ceeff3ad1a5884a6\
+             26ac256990f3e0c43756df04085fffe2ec8ddfc481c57d22cfc022423214b1187dbf24\
+             851eff881c83ce00fb1145dee759df18884551f249cbe83c",
+        );
+        let ekey = unhex(
+            "46504c59010201000000003c000000002599637c0d208f72c4d42f25bcac2bc7000000\
+             10653d25dc9e8ad48bf8a6e2f91ae575f3ad0ed60318ec306b30a4a0c125ba31096509\
+             d0d0",
+        );
+        assert_eq!(message3.len(), 164);
+        assert_eq!(ekey.len(), 72);
+        assert_eq!(
+            hex(&decrypt_aes_key(&message3, &ekey).unwrap()),
+            "38c9b755988270948b207e9e67ee18ff"
+        );
+    }
 }
