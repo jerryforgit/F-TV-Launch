@@ -263,6 +263,9 @@ final class AirPlayServer {
                     Log.d(TAG, "body[" + uri + "]: " + hex(body, Math.min(body.length, 64)));
                 }
                 String reply = dispatch(session, method, uri, cseq, challenge, body);
+                if (!reply.contains("Content-Length:")) {
+                    reply = reply.replace("\r\n\r\n", "\r\nContent-Length: 0\r\n\r\n");
+                }
                 out.write(reply.getBytes(StandardCharsets.UTF_8));
                 out.flush();
             }
