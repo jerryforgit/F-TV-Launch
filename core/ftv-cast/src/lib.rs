@@ -3,6 +3,7 @@
 //! 平台无关；Android 通过 `ftv-cast-ffi` 的 C ABI 调用，桌面端直接依赖本 crate。
 
 pub mod airplay2;
+pub mod airplay2_http;
 pub mod crypto;
 pub mod dlna;
 pub mod http;
