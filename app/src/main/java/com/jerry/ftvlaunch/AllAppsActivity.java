@@ -49,6 +49,8 @@ public class AllAppsActivity extends Activity {
 
 
         grid = findViewById(R.id.grid);
+        grid.setClipChildren(false);
+        grid.setClipToPadding(false);
         adapter = new Adapter();
         grid.setAdapter(adapter);
         grid.setOnItemClickListener((parent, view, position, id) -> launch(selectedPos));
@@ -67,15 +69,61 @@ public class AllAppsActivity extends Activity {
         }
     }
 
-    /** 滚动停在半行时，把当前行顶对齐，避免上面露出一条被切一半的格子。 */
-    private void snapRow() {
-        if (grid.getChildCount() == 0) return;
+    /** 整行滚动：让选中那一行完整露出来，并且顶部永远是一整行（不会露出被切一半的格子）。 */
+    private void ensureRowVisible(int pos) {
+        if (items.isEmpty()) return;
+        int rowStart = pos - pos % 5;
+        int rowEnd = Math.min(rowStart + 4, items.size() - 1);
         int first = grid.getFirstVisiblePosition();
-        View fv = grid.getChildAt(0);
-        int top = fv == null ? 0 : fv.getTop();
-        if (first % 5 == 0 && top >= grid.getPaddingTop() - 1) return;
-        int rowStart = first - first % 5;
-        grid.smoothScrollToPositionFromTop(rowStart, 0, 120);
+        int last = grid.getLastVisiblePosition();
+
+        // 目标行还没进视口：直接滚到这一行的顶部（只有一个动画，不会先跳再滚）
+        if (rowStart > last || rowEnd < first) {
+            grid.smoothScrollToPositionFromTop(rowStart, 0, 140);
+            return;
+        }
+
+        View top = null;
+        View bottom = null;
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            int p = first + i;
+            if (p == rowStart) top = grid.getChildAt(i);
+            if (p == rowEnd) bottom = grid.getChildAt(i);
+        }
+        if (top == null || bottom == null) return;
+
+        int contentTop = grid.getPaddingTop();
+        int contentBottom = grid.getHeight() - grid.getPaddingBottom();
+        int pitch = rowPitch();
+        int dy = 0;
+        if (bottom.getBottom() > contentBottom) dy = pitch;
+        else if (top.getTop() < contentTop) dy = -pitch;
+        if (dy == 0) return;
+        grid.scrollListBy(dy);
+        grid.post(() -> markSelected(pos));
+    }
+
+    /** 补底部留白，让列表滚到底时顶部也是一整行（不会露出半行）。 */
+    private void alignBottomPadding() {
+        int rows = (items.size() + 4) / 5;
+        int pitch = rowPitch();
+        int viewport = grid.getHeight();
+        if (rows <= 0 || pitch <= 0 || viewport <= 0) return;
+        int content = rows * pitch - grid.getVerticalSpacing();
+        int over = content - viewport;
+        int pad = over <= 0 ? 0 : ((pitch - over % pitch) % pitch);
+        if (grid.getPaddingBottom() == pad) return;
+        grid.setPadding(grid.getPaddingLeft(), grid.getPaddingTop(),
+                grid.getPaddingRight(), pad);
+    }
+
+    /** 一行占的高度（格子高 + 行间距）。 */
+    private int rowPitch() {
+        int h = 0;
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            h = Math.max(h, grid.getChildAt(i).getHeight());
+        }
+        return h + grid.getVerticalSpacing();
     }
 
     private void launch(int position) {
@@ -113,12 +161,9 @@ public class AllAppsActivity extends Activity {
             if (next != selectedPos) {
                 selectedPos = next;
                 markSelected(next);
-                grid.setSelection(next);
                 final int target = next;
                 grid.postDelayed(() -> markSelected(target), 80);
-                if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    grid.postDelayed(this::snapRow, 40);
-                }
+                ensureRowVisible(next);
             }
             return true;
         }
@@ -163,16 +208,14 @@ public class AllAppsActivity extends Activity {
         current = this;
         findViewById(R.id.root_all).setBackgroundColor(Theme.bg(this));
         findViewById(R.id.all_title_bar).setBackgroundColor(Theme.bg(this));
-        findViewById(R.id.all_title_bar).setElevation(dp(12));
-        findViewById(R.id.all_title_bar).setOutlineProvider(null);
         ((android.widget.TextView) findViewById(R.id.title)).setTextColor(Theme.text(this));
         items.clear();
         items.addAll(AppRepo.load(this));
         adapter.notifyDataSetChanged();
         grid.postDelayed(() -> {
-            grid.setSelection(selectedPos);
             grid.requestFocus();
             markSelected(selectedPos);
+            alignBottomPadding();
         }, 200);
     }
 

@@ -9,9 +9,8 @@
     <LinearLayout
         android:id="@+id/all_title_bar"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="150dp"
         android:background="@color/bg"
-        android:elevation="12dp"
         android:orientation="horizontal">
 
         <TextView
@@ -28,11 +27,12 @@
         android:id="@+id/grid"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="true"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:horizontalSpacing="20dp"
         android:numColumns="5"
         android:paddingLeft="45dp"
-        android:paddingTop="30dp"
+        android:paddingTop="0dp"
         android:paddingRight="45dp"
         android:paddingBottom="30dp"
         android:scrollbars="none"
