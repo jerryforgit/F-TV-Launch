@@ -54,7 +54,8 @@ impl SrpServer {
         kn.extend_from_slice(&pad(&g, pad_len));
         let k = from_bytes(&h(&kn));
         // x = H(s | H("Pair-Setup" | ":" | P))
-        let mut up = b"Pair-Setup:".to_vec();
+        let mut up = crate::airplay2::PAIRING_USER.to_vec();
+        up.push(b':');
         up.extend_from_slice(password);
         let inner = h(&up);
         let mut xs = salt.clone();
