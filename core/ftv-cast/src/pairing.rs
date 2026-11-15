@@ -75,6 +75,8 @@ pub const SALT: u8 = 0x02;
 
 /// pair-verify：拿到客户端公钥后回服务端公钥 + 加密的签名。
 pub struct PairVerify {
+    client_ltpk: Option<[u8; 32]>,
+    client_pub: Option<[u8; 32]>,
     secret: Option<[u8; 32]>,
     server_pub: [u8; 32],
     signing: ed25519_dalek::SigningKey,
@@ -86,6 +88,8 @@ impl PairVerify {
     pub fn new(device_id: &[u8]) -> Self {
         let (sk, _pk) = crypto::ed25519_keypair();
         Self {
+            client_ltpk: None,
+            client_pub: None,
             secret: None,
             server_pub: [0; 32],
             signing: sk,
@@ -112,6 +116,7 @@ impl PairVerify {
                 let shared = crypto::x25519_shared(&secret, &client_pub);
                 self.secret = Some(shared);
                 self.server_pub = server_pub;
+                self.client_pub = Some(client_pub);
 
                 let key = Self::derive(&shared, b"Pair-Verify-Encrypt-Salt");
                 let mut msg = client_pub.to_vec();
@@ -128,6 +133,7 @@ impl PairVerify {
                 out
             }
             Some(3) => {
+                let client_pub = self.client_pub.unwrap_or([0u8; 32]);
                 let shared = match self.secret {
                     Some(s) => s,
                     None => return tlv8::encode(&[(STATE, &[4]), (ERROR, &[0x01])]),
@@ -140,10 +146,26 @@ impl PairVerify {
                     None => return tlv8::encode(&[(STATE, &[4]), (ERROR, &[0x02])]),
                 };
                 let inner = tlv8::decode(&plain);
-                let sig = tlv8::get(&inner, SIGNATURE).unwrap_or(&[]);
-                let mut msg = self.server_pub.to_vec(); // 简化：校验服务端公钥参与的签名
+                let signature = tlv8::get(&inner, SIGNATURE).unwrap_or(&[]);
+                let identifier = tlv8::get(&inner, IDENTIFIER).unwrap_or(&[]);
+                // 客户端长期公钥：优先用 M3 里带的，其次用 pair-setup 阶段保存的
+                let ltpk: [u8; 32] = match tlv8::get(&inner, PUBLIC_KEY) {
+                    Some(v) if v.len() == 32 => v.try_into().unwrap(),
+                    _ => match self.client_ltpk {
+                        Some(k) => k,
+                        None => return tlv8::encode(&[(STATE, &[4]), (ERROR, &[0x02])]),
+                    },
+                };
+                // 签名覆盖：clientPublic || identifier || serverPublic
+                let mut msg = client_pub.to_vec();
+                msg.extend_from_slice(identifier);
                 msg.extend_from_slice(&self.server_pub);
-                if sig.len() == 64 {
+                let sig: [u8; 64] = match signature.try_into() {
+                    Ok(s) => s,
+                    Err(_) => return tlv8::encode(&[(STATE, &[4]), (ERROR, &[0x02])]),
+                };
+                if crypto::ed25519_verify(&ltpk, &msg, &sig) {
+                    self.client_ltpk = Some(ltpk);
                     self.session_key = Some(key);
                     tlv8::encode(&[(STATE, &[4])])
                 } else {
@@ -181,6 +203,55 @@ mod tests {
         assert_eq!(tlv8::get(&items, STATE), Some(&[2u8][..]));
         assert_eq!(tlv8::get(&items, SALT).unwrap().len(), 16);
         assert_eq!(tlv8::get(&items, PUBLIC_KEY).unwrap().len(), 384);
+    }
+
+    #[test]
+    fn pair_verify_m3_checks_signature() {
+        let mut v = PairVerify::new(b"FTV");
+        let (client_sk, client_pk) = crypto::ed25519_keypair();
+        let (client_x_sk, client_x_pk) = crypto::x25519_keypair();
+
+        let m1 = tlv8::encode(&[(STATE, &[1]), (PUBLIC_KEY, &client_x_pk)]);
+        let out = v.handle(&m1);
+        let items = tlv8::decode(&out);
+        let server_pub: [u8; 32] =
+            tlv8::get(&items, PUBLIC_KEY).unwrap().try_into().unwrap();
+
+        let shared = crypto::x25519_shared(&client_x_sk, &server_pub);
+        let mut key = [0u8; 32];
+        crypto::hkdf_sha512(&shared, &shared, b"Pair-Verify-Encrypt-Salt", &mut key);
+
+        let identifier = b"ios-device";
+        let mut msg = client_x_pk.to_vec();
+        msg.extend_from_slice(identifier);
+        msg.extend_from_slice(&server_pub);
+        let sig = crypto::ed25519_sign(&client_sk, &msg);
+        let inner = tlv8::encode(&[
+            (IDENTIFIER, identifier),
+            (SIGNATURE, &sig),
+            (PUBLIC_KEY, &client_pk),
+        ]);
+        let encrypted = crypto::seal(&key, b"PV-Msg03\0\0\0\0", &inner, b"");
+        let m3 = tlv8::encode(&[(STATE, &[3]), (ENCRYPTED_DATA, &encrypted)]);
+        let ok = tlv8::decode(&v.handle(&m3));
+        assert_eq!(tlv8::get(&ok, STATE), Some(&[4u8][..]));
+        assert!(tlv8::get(&ok, ERROR).is_none(), "合法签名应通过");
+        assert!(v.session_key().is_some());
+
+        // 篡改签名应被拒
+        let mut bad_sig = sig;
+        bad_sig[0] ^= 0xff;
+        let inner_bad = tlv8::encode(&[
+            (IDENTIFIER, identifier),
+            (SIGNATURE, &bad_sig),
+            (PUBLIC_KEY, &client_pk),
+        ]);
+        let mut v2 = PairVerify::new(b"FTV");
+        v2.handle(&m1);
+        let enc_bad = crypto::seal(&key, b"PV-Msg03\0\0\0\0", &inner_bad, b"");
+        let m3_bad = tlv8::encode(&[(STATE, &[3]), (ENCRYPTED_DATA, &enc_bad)]);
+        let bad = tlv8::decode(&v2.handle(&m3_bad));
+        assert!(tlv8::get(&bad, ERROR).is_some(), "篡改签名应被拒");
     }
 
     #[test]
