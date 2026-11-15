@@ -29,9 +29,10 @@ final class CursorOverlay {
         return true;
     }
 
-    void show() {
-        if (shown || wm == null) return;
-        if (!canShow()) return;
+    String show() {
+        if (shown) return null;
+        if (wm == null) return "no window manager";
+        if (!canShow()) return "没有悬浮窗权限";
         dot = new View(ctx);
         GradientDrawable g = new GradientDrawable();
         g.setShape(GradientDrawable.OVAL);
@@ -54,7 +55,9 @@ final class CursorOverlay {
         try {
             wm.addView(dot, lp);
             shown = true;
-        } catch (Exception ignored) {
+            return null;
+        } catch (Exception e) {
+            return e.getClass().getSimpleName() + ": " + e.getMessage();
         }
     }
 

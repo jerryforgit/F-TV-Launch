@@ -223,6 +223,25 @@ final class ControlServer {
         return Response.json("{\"ok\":false,\"error\":\"not found\"}");
     }
 
+    private String foreground() {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager)
+                    ctx.getSystemService(Context.ACTIVITY_SERVICE);
+            java.util.List<android.app.ActivityManager.RunningAppProcessInfo> ps =
+                    am.getRunningAppProcesses();
+            if (ps != null) {
+                for (android.app.ActivityManager.RunningAppProcessInfo p : ps) {
+                    if (p.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                            && p.processName.equals(ctx.getPackageName())) {
+                        return "launcher";
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "other";
+    }
+
     private String appsJson() {
         StringBuilder sb = new StringBuilder("{\"ok\":true,\"apps\":[");
         boolean first = true;
@@ -239,29 +258,52 @@ final class ControlServer {
 
     private String key(String code) {
         if (code == null) return err("no code");
+        // 桌面自己在前台：直接投递按键，方向键/OK 全都能用（不需要 root）
+        final MainActivity act = MainActivity.current;
+        if (act != null && "launcher".equals(foreground())) {
+            final int kc = keyCode(code);
+            if (kc > 0) {
+                main.post(() -> {
+                    long now = android.os.SystemClock.uptimeMillis();
+                    act.getWindow().getDecorView().dispatchKeyEvent(
+                            new KeyEvent(now, now, KeyEvent.ACTION_DOWN, kc, 0));
+                    act.getWindow().getDecorView().dispatchKeyEvent(
+                            new KeyEvent(now, now, KeyEvent.ACTION_UP, kc, 0));
+                });
+                return ok();
+            }
+        }
         if ("root".equals(mode)) {
             int kc = keyCode(code);
             if (kc <= 0) return err("bad code");
             return runRoot("input keyevent " + kc) ? ok() : err("root failed");
         }
-        if ("a11y".equals(mode)) {
-            RemoteA11yService svc = RemoteA11yService.get();
-            if (svc != null) {
-                if ("BACK".equals(code) && svc.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)) return ok();
-                if ("HOME".equals(code) && svc.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)) return ok();
-                if ("MENU".equals(code) && svc.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)) return ok();
-            }
-            return err("a11y 模式只支持 返回/主页/最近任务");
+        RemoteA11yService svc = RemoteA11yService.get();
+        if (svc != null) {
+            if ("BACK".equals(code) && svc.global(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)) return ok();
+            if ("HOME".equals(code) && svc.global(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)) return ok();
+            if ("MENU".equals(code) && svc.global(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)) return ok();
+            if ("OK".equals(code) && svc.clickFocused()) return ok();
+            if (("DOWN".equals(code) || "RIGHT".equals(code)) && svc.scroll(true)) return ok();
+            if (("UP".equals(code) || "LEFT".equals(code)) && svc.scroll(false)) return ok();
+            return err("这个界面不支持该按键（开启无障碍或 root 后可用）");
         }
-        return err("没有可用的注入通道");
+        return err("请先在电视上开启无障碍服务");
     }
 
     private String text(String text) {
         if (text == null || text.isEmpty()) return err("empty");
-        if (!"root".equals(mode)) return err("文字输入需要 root");
-        String safe = text.replace("\\", "").replace("\"", "").replace("'", "")
-                .replace(" ", "%s");
-        return runRoot("input text \"" + safe + "\"") ? ok() : err("root failed");
+        if ("root".equals(mode)) {
+            String safe = text.replace("\\", "").replace("\"", "").replace("'", "")
+                    .replace(" ", "%s");
+            if (runRoot("input text \"" + safe + "\"")) return ok();
+        }
+        RemoteA11yService svc = RemoteA11yService.get();
+        if (svc != null && svc.setText(text)) return ok();
+        return err("当前界面没有输入框（或需要开启无障碍）");
     }
 
     private String media(String action) {
@@ -287,17 +329,18 @@ final class ControlServer {
 
     private String cursor(String show) {
         if ("1".equals(show)) {
-            if (!cursor.canShow()) return err("需要允许「显示在其他应用上层」");
-            cursor.show();
+            main.post(() -> cursor.show());
         } else {
-            cursor.hide();
+            main.post(cursor::hide);
         }
-        return "{\"ok\":true,\"shown\":" + cursor.isShown() + "}";
+        return "{\"ok\":true,\"shown\":true}";
     }
 
     private String move(String dx, String dy) {
         try {
-            cursor.move(Double.parseDouble(dx), Double.parseDouble(dy));
+            final double fx = Double.parseDouble(dx);
+            final double fy = Double.parseDouble(dy);
+            main.post(() -> cursor.move(fx, fy));
             return ok();
         } catch (Exception e) {
             return err("bad delta");

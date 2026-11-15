@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     private HomeAdapter adapter;
     private TextView tvDate, tvTime;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    static MainActivity current;
     private TextView hint;
     private boolean editMode;
     private int movingPos = -1;
@@ -127,6 +128,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        current = this;
         applyTheme();
         if (Theme.isDark(this)) findViewById(R.id.root).setBackgroundColor(Theme.bg(this));
         else Wallpaper.apply(this, findViewById(R.id.root));
@@ -192,6 +194,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        if (current == this) current = null;
         if (!editMode) lastSelected = Math.max(0, selectedPos);
         handler.removeCallbacks(tick);
     }
