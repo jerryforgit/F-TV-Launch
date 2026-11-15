@@ -5,6 +5,7 @@
 
 use std::ffi::{c_char, CStr, CString};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use ftv_cast::dlna::{self, Shared, Sink, State};
@@ -13,35 +14,47 @@ struct BridgeSink;
 
 static STATE: OnceLock<Shared> = OnceLock::new();
 static RUNNING: OnceLock<Arc<AtomicBool>> = OnceLock::new();
-static PENDING: OnceLock<Mutex<Option<(String, String)>>> = OnceLock::new();
+static EVENTS: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
 
 fn state() -> &'static Shared {
     STATE.get_or_init(|| Arc::new(Mutex::new(State::new())))
 }
-fn pending() -> &'static Mutex<Option<(String, String)>> {
-    PENDING.get_or_init(|| Mutex::new(None))
+fn events() -> &'static Mutex<VecDeque<String>> {
+    EVENTS.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+
+fn push(event: String) {
+    let mut q = events().lock().unwrap();
+    if q.len() > 32 {
+        q.pop_front();
+    }
+    q.push_back(event);
 }
 
 impl Sink for BridgeSink {
     fn play(&self, url: &str, title: &str) {
         log::info!("play {url}");
-        *pending().lock().unwrap() = Some((url.to_string(), title.to_string()));
+        push(format!("play\n{url}\n{title}"));
     }
     fn stop(&self) {
-        let mut st = state().lock().unwrap();
-        st.transport = "STOPPED".into();
+        state().lock().unwrap().transport = "STOPPED".into();
+        push("stop".into());
     }
     fn seek(&self, s: u64) {
         state().lock().unwrap().position = s;
+        push(format!("seek\n{s}"));
     }
     fn pause(&self) {
         state().lock().unwrap().transport = "PAUSED_PLAYBACK".into();
+        push("pause".into());
     }
     fn resume(&self) {
         state().lock().unwrap().transport = "PLAYING".into();
+        push("resume".into());
     }
     fn set_volume(&self, v: u8) {
         state().lock().unwrap().volume = v;
+        push(format!("volume\n{v}"));
     }
 }
 
@@ -85,12 +98,13 @@ pub extern "C" fn ftv_cast_start(
     }
 }
 
-/// 取一次播放请求（"url\ntitle"），没有就返回 NULL。用完要调 `ftv_cast_free`。
+/// 取一条控制事件："play\nurl\ntitle" / "stop" / "pause" / "resume" / "seek\n秒" / "volume\n值"。
+/// 没有就返回 NULL；用完要调 `ftv_cast_free`。
 #[no_mangle]
-pub extern "C" fn ftv_cast_take_play() -> *mut c_char {
-    let taken = pending().lock().unwrap().take();
+pub extern "C" fn ftv_cast_take_event() -> *mut c_char {
+    let taken = events().lock().unwrap().pop_front();
     match taken {
-        Some((url, title)) => CString::new(format!("{url}\n{title}"))
+        Some(e) => CString::new(e)
             .map(|s| s.into_raw())
             .unwrap_or(std::ptr::null_mut()),
         None => std::ptr::null_mut(),
@@ -161,11 +175,11 @@ mod jni_bridge {
     }
 
     #[no_mangle]
-    pub extern "system" fn Java_com_jerry_ftvlaunch_RustCast_takePlay(
+    pub extern "system" fn Java_com_jerry_ftvlaunch_RustCast_takeEvent(
         mut env: JNIEnv,
         _class: JClass,
     ) -> jstring {
-        let p = super::ftv_cast_take_play();
+        let p = super::ftv_cast_take_event();
         if p.is_null() {
             return std::ptr::null_mut();
         }

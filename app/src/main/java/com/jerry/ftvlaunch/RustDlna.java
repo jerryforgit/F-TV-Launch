@@ -43,19 +43,11 @@ final class RustDlna {
         new Thread(() -> {
             while (true) {
                 try {
-                    String pending = RustCast.takePlay();
-                    if (pending != null) {
-                        int nl = pending.indexOf('\n');
-                        String url = nl >= 0 ? pending.substring(0, nl) : pending;
-                        String title = nl >= 0 ? pending.substring(nl + 1) : "";
-                        main.post(() -> {
-                            Intent i = new Intent(ctx, DlnaPlayerActivity.class);
-                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                            i.putExtra(DlnaPlayerActivity.EXTRA_URI, url);
-                            i.putExtra(DlnaPlayerActivity.EXTRA_TITLE, title);
-                            ctx.startActivity(i);
-                        });
+                    String event = RustCast.takeEvent();
+                    if (event != null) {
+                        String[] parts = event.split("\n", 3);
+                        String cmd = parts[0];
+                        main.post(() -> dispatch(ctx, cmd, parts));
                     }
                     Thread.sleep(200);
                 } catch (InterruptedException e) {
@@ -65,6 +57,50 @@ final class RustDlna {
                 }
             }
         }, "rust-dlna-poll").start();
+    }
+
+    private static void dispatch(Context ctx, String cmd, String[] parts) {
+        if ("play".equals(cmd)) {
+            String url = parts.length > 1 ? parts[1] : "";
+            String title = parts.length > 2 ? parts[2] : "";
+            Intent i = new Intent(ctx, DlnaPlayerActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            i.putExtra(DlnaPlayerActivity.EXTRA_URI, url);
+            i.putExtra(DlnaPlayerActivity.EXTRA_TITLE, title);
+            ctx.startActivity(i);
+            return;
+        }
+        DlnaPlayerActivity p = DlnaPlayerActivity.current;
+        if (p == null) return;
+        switch (cmd) {
+            case "stop":
+                p.doStop();
+                break;
+            case "pause":
+                p.doPause();
+                break;
+            case "resume":
+                p.doPlay();
+                break;
+            case "seek":
+                if (parts.length > 1) {
+                    try {
+                        p.doSeek(Long.parseLong(parts[1].trim()) * 1000);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                break;
+            case "volume":
+                if (parts.length > 1) {
+                    try {
+                        p.setVolumePercent(Integer.parseInt(parts[1].trim()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     private RustDlna() {

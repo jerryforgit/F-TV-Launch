@@ -29,7 +29,9 @@ public class DlnaPlayerActivity extends Activity {
     static final String EXTRA_URI = "uri";
     static final String EXTRA_TITLE = "title";
 
+    static DlnaPlayerActivity current;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private long pendingSeekMs = -1;
     private VideoView video;
     private ImageView photo;
     private TextView titleView;
@@ -165,6 +167,10 @@ public class DlnaPlayerActivity extends Activity {
             DlnaServer.durationMs = video.getDuration();
             DlnaServer.transportState = "PLAYING";
             video.start();
+            if (pendingSeekMs >= 0) {
+                video.seekTo((int) pendingSeekMs);
+                pendingSeekMs = -1;
+            }
         });
         video.setOnCompletionListener(mp -> {
             DlnaServer.transportState = "STOPPED";
@@ -211,6 +217,7 @@ public class DlnaPlayerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        current = this;
         DlnaServer.player = this;
         tick();
     }
@@ -219,6 +226,7 @@ public class DlnaPlayerActivity extends Activity {
     protected void onPause() {
         super.onPause();
         if (DlnaServer.player == this) DlnaServer.player = null;
+        if (current == this) current = null;
     }
 
     private final Runnable ticker = new Runnable() {
@@ -275,8 +283,23 @@ public class DlnaPlayerActivity extends Activity {
         finish();
     }
 
+    void setVolumePercent(int percent) {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager)
+                    getSystemService(AUDIO_SERVICE);
+            int max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+            am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+                    Math.round(max * Math.max(0, Math.min(100, percent)) / 100f), 0);
+        } catch (Exception ignored) {
+        }
+    }
+
     void doSeek(long ms) {
-        if (imageMode || !prepared) return;
+        if (imageMode) return;
+        if (!prepared) {
+            pendingSeekMs = Math.max(0, ms);
+            return;
+        }
         video.seekTo((int) Math.max(0, Math.min(ms, video.getDuration())));
         DlnaServer.positionMs = ms;
     }

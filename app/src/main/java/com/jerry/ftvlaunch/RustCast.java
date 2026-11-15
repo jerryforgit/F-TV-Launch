@@ -9,8 +9,8 @@ final class RustCast {
 
     static native int start(int port, String ip, String udn, String name);
 
-    /** 返回 "url\ntitle"，没有则 null。 */
-    static native String takePlay();
+    /** 返回一条事件："play\nurl\ntitle" / "stop" / "pause" / "resume" / "seek\n秒" / "volume\n值"，没有则 null。 */
+    static native String takeEvent();
 
     static native void setProgress(long durationSec, long positionSec, int playing);
 
