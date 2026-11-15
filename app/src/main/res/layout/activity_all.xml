@@ -9,7 +9,7 @@
     <LinearLayout
         android:id="@+id/all_title_bar"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
+        android:layout_height="120dp"
         android:background="@color/bg"
         android:orientation="horizontal">
 
@@ -22,6 +22,14 @@
             android:textColor="#FF4D4D4D"
             android:textSize="80dp" />
     </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/grid_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingTop="16dp">
 
     <GridView
         android:id="@+id/grid"
@@ -37,4 +45,6 @@
         android:paddingBottom="30dp"
         android:scrollbars="none"
         android:verticalSpacing="20dp" />
+
+    </FrameLayout>
 </LinearLayout>

@@ -45,9 +45,7 @@ class AppCell extends LinearLayout {
         card.setBackground(normalCard);
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        // 留出内边距，聚焦放大后也不会超出格子被裁掉
-        int inset = dp(8);
-        cp.setMargins(inset, inset, inset, inset);
+        cp.setMargins(0, 0, 0, 0);
         card.setLayoutParams(cp);
         addView(card);
 
