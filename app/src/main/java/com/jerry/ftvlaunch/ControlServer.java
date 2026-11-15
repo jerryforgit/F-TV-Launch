@@ -505,7 +505,7 @@ h1{font-size:17px;margin:0;font-weight:600}
 .keys button{height:52px;font-size:16px}
 button{background:#20242c;color:#e8e8e8;border:1px solid #2b2f38;border-radius:14px;
        font-size:15px;padding:10px;transition:.1s}
-button:active{background:#2f6bff;border-color:#2f6bff;color:#fff}
+button:active,button.pressed{background:#2f6bff;border-color:#2f6bff;color:#fff}
 .row{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;margin-top:8px}
 input{width:100%;padding:12px;border-radius:12px;border:1px solid #2b2f38;background:#1b1e24;color:#fff;font-size:16px}
 .apps{grid-template-columns:repeat(2,1fr);max-height:34vh;overflow:auto}
@@ -587,6 +587,24 @@ async function status(){
 }
 status();setInterval(status,15000);
 if(!token)toast('请重新扫码配对');
+
+// iOS 上 CSS :active 不可靠，自己加按下态
+let pressTimer=null;
+document.addEventListener('pointerdown',e=>{
+  document.querySelectorAll('button.pressed').forEach(b=>b.classList.remove('pressed'));
+  const b=e.target.closest?e.target.closest('button'):null;
+  if(!b)return;
+  b.classList.add('pressed');
+  clearTimeout(pressTimer);
+  pressTimer=setTimeout(()=>b.classList.remove('pressed'),150);
+},true);
+document.addEventListener('pointerup',e=>{
+  const b=e.target.closest?e.target.closest('button'):null;
+  if(b)setTimeout(()=>b.classList.remove('pressed'),80);
+},true);
+document.addEventListener('pointercancel',()=>{
+  document.querySelectorAll('button.pressed').forEach(b=>b.classList.remove('pressed'));
+},true);
 
 async function key(k){
   const r=await api('key','code='+k);
