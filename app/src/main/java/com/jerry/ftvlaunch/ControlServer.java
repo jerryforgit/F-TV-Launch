@@ -179,7 +179,10 @@ final class ControlServer {
             return Response.html(PWA);
         }
         if (path.equals("/manifest.json")) {
-            return Response.json(MANIFEST, "application/manifest+json");
+            return Response.json(
+                    MANIFEST.replace("\"start_url\":\"/\"",
+                            "\"start_url\":\"/?t=" + token(ctx) + "\""),
+                    "application/manifest+json");
         }
         if (path.equals("/sw.js")) {
             return Response.js(SW);
@@ -519,9 +522,18 @@ h2{font-size:13px;color:#8a909a;margin:16px 0 8px;font-weight:500}
 <body>
 <header><h1>F TV 遥控</h1>
 <div style="display:flex;gap:8px;align-items:center">
+<button id="pairBtnTop" style="padding:6px 12px;font-size:12px">配对</button>
 <button id="gyro" style="padding:6px 12px;font-size:12px">体感</button>
 <button id="cur" style="padding:6px 12px;font-size:12px">光标</button>
 <span id="mode">连接中…</span></div></header>
+
+<div id="pair" style="display:none">
+  <h2>手动配对</h2>
+  <div class="row" style="grid-template-columns:1fr auto">
+    <input id="code" placeholder="输入电视上显示的配对码" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="pairOk">连接</button>
+  </div>
+</div>
 
 <div id="pad"><div class="hint">触控板<br>滑动 = 方向 · 点按 = OK<br>双击 = 返回 · 长按 = 菜单</div></div>
 
@@ -556,9 +568,17 @@ h2{font-size:13px;color:#8a909a;margin:16px 0 8px;font-weight:500}
 
 <script>
 const qs=new URLSearchParams(location.search);
-let token=qs.get('t')||localStorage.getItem('ftv_token');
-if(qs.get('t'))localStorage.setItem('ftv_token',qs.get('t'));
 const $=id=>document.getElementById(id);
+const urlToken=(qs.get('t')||'').trim();
+let token=localStorage.getItem('ftv_token')||'';
+function showPair(on){$('pair').style.display=on?'block':'none'}
+async function checkToken(t){
+  try{
+    const r=await fetch('/api/status?t='+encodeURIComponent(t),{cache:'no-store'});
+    const j=await r.json();
+    return !!(j&&j.ok);
+  }catch(e){return false}
+}
 function toast(m){const el=$('toast');el.textContent=m;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),1200)}
 async function api(p,extra){
   if(!token){toast('请重新扫码配对');return null}
@@ -568,8 +588,9 @@ async function api(p,extra){
     if(!r.ok&&r.status!==200){toast('电视返回错误 '+r.status);return null}
     const j=await r.json();
     if(j&&j.error==='token'){
-      toast('配对码已失效，请在电视上重新扫码');
-      localStorage.removeItem('ftv_token');token=null;return null;
+      toast('配对码已失效，请在电视上重新配对');
+      localStorage.removeItem('ftv_token');token='';showPair(true);
+      document.getElementById('mode').textContent='未配对';return null;
     }
     return j;
   }catch(e){
@@ -581,12 +602,20 @@ async function api(p,extra){
   }
 }
 async function status(){
+  if(!token){$('mode').textContent='未配对';return}
   const s=await api('ping');
   if(s&&s.ok){$('mode').textContent=s.mode==='root'?'root 模式':(s.mode==='a11y'?'无障碍模式':'受限模式')}
   else{$('mode').textContent=token?'未连接':'未配对'}
 }
-status();setInterval(status,15000);
-if(!token)toast('请重新扫码配对');
+async function initToken(){
+  if(urlToken&&urlToken!==token&&await checkToken(urlToken)){
+    token=urlToken;localStorage.setItem('ftv_token',token);
+  }
+  showPair(!token);
+  status();
+  setInterval(status,15000);
+}
+initToken();
 
 // iOS 上 CSS :active 不可靠，自己加按下态
 let pressTimer=null;
@@ -645,6 +674,21 @@ pad.addEventListener('touchend',e=>{
   if(now-lastTap<280){dk('BACK');lastTap=0;return}
   lastTap=now;dk('OK');
 },{passive:false});
+
+$('pairBtnTop').addEventListener('click',()=>{
+  showPair($('pair').style.display==='none');
+});
+$('pairOk').addEventListener('click',async()=>{
+  const v=$('code').value.trim().toLowerCase().split(' ').join('');
+  if(!v){toast('请输入电视上显示的配对码');return}
+  if(await checkToken(v)){
+    token=v;localStorage.setItem('ftv_token',v);
+    $('code').value='';showPair(false);toast('配对成功');status();
+  }else{
+    toast('配对码不对，请核对电视上的显示');
+  }
+});
+$('code').addEventListener('keydown',e=>{if(e.key==='Enter')$('pairOk').click()});
 
 $('send').addEventListener('click',async()=>{
   const v=$('txt').value.trim();if(!v)return;

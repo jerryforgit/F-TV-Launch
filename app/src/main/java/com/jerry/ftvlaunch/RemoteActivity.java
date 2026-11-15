@@ -36,6 +36,8 @@ public class RemoteActivity extends Activity {
         ((TextView) findViewById(R.id.remote_a11y)).setTextColor(Theme.text(this));
         ((TextView) findViewById(R.id.remote_reset)).setTextColor(Theme.text(this));
         ((TextView) findViewById(R.id.remote_overlay)).setTextColor(Theme.text(this));
+        ((TextView) findViewById(R.id.remote_showcode)).setTextColor(Theme.text(this));
+        findViewById(R.id.remote_showcode).setBackground(Theme.rowBackground(this));
         findViewById(R.id.remote_overlay).setBackground(Theme.rowBackground(this));
 
         ControlServer.get(this).start();
@@ -55,6 +57,7 @@ public class RemoteActivity extends Activity {
                 }
             }
         });
+        findViewById(R.id.remote_showcode).setOnClickListener(v -> showCodeDialog());
         findViewById(R.id.remote_reset).setOnClickListener(v ->
                 new android.app.AlertDialog.Builder(this)
                         .setMessage("重新生成配对码？已经配对的手机需要重新扫码。")
@@ -65,6 +68,22 @@ public class RemoteActivity extends Activity {
                         })
                         .show());
         render();
+    }
+
+    private void showCodeDialog() {
+        int pad = Math.round(30 * getResources().getDisplayMetrics().density);
+        TextView tv = new TextView(this);
+        tv.setText(ControlServer.token(this));
+        tv.setTextSize(40);
+        tv.setGravity(android.view.Gravity.CENTER);
+        tv.setPadding(pad, pad, pad, pad);
+        tv.setTextColor(Color.WHITE);
+        tv.setTextIsSelectable(true);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("在手机页面的「配对」里输入这个配对码")
+                .setView(tv)
+                .setPositiveButton("知道了", null)
+                .show();
     }
 
     private void render() {

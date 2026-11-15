@@ -51,7 +51,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:lineSpacingExtra="6dp"
-            android:text="手机扫码打开网页，就可以当遥控器用。\n配对一次即可，之后把它添加到手机主屏，下次直接打开。"
+            android:text="手机扫码打开网页，就可以当遥控器用。\n配对一次即可；连不上时点「显示配对码」，在手机页面里手动输入。"
             android:textColor="#FF8A8A8A"
             android:textSize="26dp" />
 
@@ -88,6 +88,20 @@
             android:gravity="center_vertical"
             android:paddingLeft="28dp"
             android:text="允许悬浮光标（体感遥控需要）"
+            android:textColor="@color/textColor"
+            android:textSize="28dp" />
+
+        <TextView
+            android:id="@+id/remote_showcode"
+            android:layout_width="match_parent"
+            android:layout_height="86dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/cell_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingLeft="28dp"
+            android:text="显示配对码（手机连不上时手动输入）"
             android:textColor="@color/textColor"
             android:textSize="28dp" />
 
