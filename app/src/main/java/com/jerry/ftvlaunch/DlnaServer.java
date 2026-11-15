@@ -272,6 +272,7 @@ final class DlnaServer {
                 + "<friendlyName>F TV 桌面</friendlyName>"
                 + "<manufacturer>F TV Launcher</manufacturer>"
                 + "<dlna:X_DLNADOC>DMR-1.50</dlna:X_DLNADOC>"
+                + "<dlna:X_DLNACAP>audio-upload,image-upload</dlna:X_DLNACAP>"
                 + "<modelName>F TV Launcher</modelName>"
                 + "<modelNumber>1</modelNumber>"
                 + "<UDN>uuid:" + uuid + "</UDN>"

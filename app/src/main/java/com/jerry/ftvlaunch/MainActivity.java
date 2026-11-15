@@ -250,6 +250,12 @@ public class MainActivity extends Activity {
             return true;
         }
 
+        if (!editMode && code == KeyEvent.KEYCODE_BACK
+                && event.getAction() == KeyEvent.ACTION_DOWN) {
+            // 桌面本身就是主页，返回键什么都不做
+            return true;
+        }
+
         if (editMode) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (code == KeyEvent.KEYCODE_DPAD_LEFT) { moveBy(-1, 0); return true; }

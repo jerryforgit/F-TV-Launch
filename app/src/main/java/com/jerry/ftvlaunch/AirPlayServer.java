@@ -225,6 +225,12 @@ final class AirPlayServer {
 
     private String dispatch(Session sess, String method, String uri, String cseq,
                             String challenge, byte[] body) {
+        // AirPlay 2 的 HAP 配对（curve25519）我们没实现：明确拒绝，iOS 会自动回退到 AirPlay 1
+        if (method.equals("POST") && (uri.startsWith("/auth-setup")
+                || uri.startsWith("/pair-setup") || uri.startsWith("/pair-verify"))) {
+            Log.i(TAG, "reject HAP pairing " + uri);
+            return "RTSP/1.0 403 Forbidden\r\nCSeq: " + cseq + "\r\n\r\n";
+        }
         switch (method) {
             case "OPTIONS": {
                 String extra = "";
