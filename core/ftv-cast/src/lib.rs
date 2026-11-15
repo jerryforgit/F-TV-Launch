@@ -7,6 +7,7 @@ pub mod crypto;
 pub mod dlna;
 pub mod http;
 pub mod mdns;
+pub mod pairing;
 pub mod srp;
 pub mod ssdp;
 pub mod tlv8;
