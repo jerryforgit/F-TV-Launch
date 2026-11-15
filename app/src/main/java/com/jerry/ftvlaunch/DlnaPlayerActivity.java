@@ -32,6 +32,7 @@ public class DlnaPlayerActivity extends Activity {
     static DlnaPlayerActivity current;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private long pendingSeekMs = -1;
+    private long lastSeekAt;
     private VideoView video;
     private ImageView photo;
     private TextView titleView;
@@ -166,15 +167,28 @@ public class DlnaPlayerActivity extends Activity {
             prepared = true;
             DlnaServer.durationMs = video.getDuration();
             DlnaServer.transportState = "PLAYING";
-            video.start();
-            if (pendingSeekMs >= 0) {
-                video.seekTo((int) pendingSeekMs);
-                pendingSeekMs = -1;
-            }
+            // 留 350ms 让手机把起始位置（B 站是单独一条 Seek）发过来，再开播
+            handler.postDelayed(() -> {
+                if (!prepared) return;
+                if (pendingSeekMs >= 0) {
+                    lastSeekAt = android.os.SystemClock.elapsedRealtime();
+                    video.seekTo((int) clampSeek(pendingSeekMs));
+                    pendingSeekMs = -1;
+                }
+                video.start();
+            }, 350);
         });
         video.setOnCompletionListener(mp -> {
+            // 刚拖过进度就到 EOS：多半是手机把位置报到了边界，回到目标位置继续，而不是显示"播放结束"
+            if (android.os.SystemClock.elapsedRealtime() - lastSeekAt < 1500) {
+                video.seekTo((int) Math.max(0, clampSeek(pendingSeekMs >= 0
+                        ? pendingSeekMs : DlnaServer.positionMs) - 1000));
+                video.start();
+                return;
+            }
             DlnaServer.transportState = "STOPPED";
             DlnaServer.positionMs = DlnaServer.durationMs;
+            RustCast.setStopped();
             hintView.setText("播放结束 · OK 重新播放 · 返回 退出");
         });
         video.setOnErrorListener((mp, what, extra) -> {
@@ -296,12 +310,18 @@ public class DlnaPlayerActivity extends Activity {
 
     void doSeek(long ms) {
         if (imageMode) return;
-        if (!prepared) {
-            pendingSeekMs = Math.max(0, ms);
-            return;
-        }
-        video.seekTo((int) Math.max(0, Math.min(ms, video.getDuration())));
-        DlnaServer.positionMs = ms;
+        pendingSeekMs = Math.max(0, ms);
+        if (!prepared) return;
+        lastSeekAt = android.os.SystemClock.elapsedRealtime();
+        int target = (int) clampSeek(ms);
+        video.seekTo(target);
+        DlnaServer.positionMs = target;
+    }
+
+    private long clampSeek(long ms) {
+        int dur = video.getDuration();
+        long max = dur > 0 ? dur - 300L : ms;
+        return Math.max(0, Math.min(ms, Math.max(0, max)));
     }
 
     @Override
