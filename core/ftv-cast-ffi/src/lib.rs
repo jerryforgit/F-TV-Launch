@@ -138,7 +138,9 @@ pub extern "C" fn ftv_cast_set_stopped() {
 /// 启动 AirPlay 2 配对端点，返回端口（<0 表示失败）。
 #[no_mangle]
 pub extern "C" fn ftv_cast_start_airplay2() -> i32 {
-    match ftv_cast::airplay2_http::spawn(0) {
+    let port = ftv_cast::airplay2_http::spawn(5000)
+        .or_else(|_| ftv_cast::airplay2_http::spawn(0));
+    match port {
         Ok(port) => {
             log::info!("airplay2 pairing on {port}");
             port as i32

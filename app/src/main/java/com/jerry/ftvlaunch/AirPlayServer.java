@@ -68,8 +68,7 @@ final class AirPlayServer {
         running = true;
         loadKeys();
         mac = hardwareAddress();
-        new Thread(() -> rtspLoop(RTSP_PORT), "airplay-rtsp").start();
-        registerMdns();
+        // 5000 端口交给 Rust 的配对端点，不再自己监听
     }
 
     // ---------------- 密钥 ----------------
