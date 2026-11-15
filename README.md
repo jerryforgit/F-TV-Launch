@@ -14,6 +14,18 @@
 
 ---
 
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/STATUS.md](docs/STATUS.md) | 项目现状、待办、交接说明（**新会话先看这个**） |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构、端口、模块划分、关键设计决定 |
+| [docs/DEV.md](docs/DEV.md) | 构建、adb、代理、常见坑 |
+| [docs/TESTING.md](docs/TESTING.md) | Rust 单测、DLNA/AirPlay 脚本测试、抓包 |
+| [docs/AIRPLAY.md](docs/AIRPLAY.md) | AirPlay 2 协议笔记（FairPlay 3 / HAP / 音频） |
+
+---
+
 ## 截图
 
 | 浅色桌面 | 深色桌面 |

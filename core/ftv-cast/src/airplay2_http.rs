@@ -77,9 +77,10 @@ impl AudioSession {
             let fp_key = fp.decrypt_aes_key(ekey).ok_or_else(|| {
                 "ekey 解密失败（缺 fp-setup seq3 keymsg，或 ekey 不是 72 字节）".to_string()
             })?;
+            // 新会话可能来自另一台发送端：先把上一会话的音频线程/端口停掉。
+            self.reset_for_new_session();
             self.fp_key = Some(fp_key);
             self.eiv = Some(eiv.try_into().expect("已经校验长度"));
-            audio_out::clear();
             self.derive_key();
             self.session_active = true;
 
@@ -122,6 +123,30 @@ impl AudioSession {
         }
 
         Err("SETUP body 既没有 ekey/eiv，也没有 streams".into())
+    }
+
+    fn reset_for_new_session(&mut self) {
+        if let Some(stop) = self.audio_stop.take() {
+            stop.store(true, Ordering::Relaxed);
+        }
+        if let Some(stop) = self.ntp_stop.take() {
+            stop.store(true, Ordering::Relaxed);
+        }
+        self.data_port = 0;
+        self.control_port = 0;
+        self.audio_started = false;
+        self.timing_port = 0;
+        self.event_port = 0;
+        audio_out::clear();
+    }
+
+    fn end_session(&mut self) {
+        self.reset_for_new_session();
+        self.fp_key = None;
+        self.eiv = None;
+        self.key = None;
+        self.shared_secret = None;
+        self.session_active = false;
     }
 
     fn set_shared_secret(&mut self, secret: [u8; 32]) {
@@ -565,7 +590,7 @@ fn handle(mut s: TcpStream, ctx: &Ctx) -> std::io::Result<()> {
             }
             ("RECORD", _) | ("FLUSH", _) | ("TEARDOWN", _) => {
                 if method == "TEARDOWN" {
-                    audio_out::clear();
+                    ctx.audio.lock().unwrap().end_session();
                 }
                 (200, "application/octet-stream", Vec::new())
             }
@@ -844,6 +869,25 @@ mod tests {
             .decode_packet::<i16>(&frame, &mut pcm)
             .expect("真实 ALAC 帧应能解码");
         assert_eq!(samples.len(), 704);
+    }
+
+    #[test]
+    fn new_setup_resets_old_audio_ports() {
+        let mut fp = FpSession::new();
+        assert!(fp.handle(FP_SEQ3).is_some());
+        let mut audio = AudioSession::default();
+        audio.handle_setup(SETUP1, &fp, None).unwrap();
+        audio.handle_setup(SETUP2, &fp, None).unwrap();
+        let first_data = audio.data_port;
+        assert!(first_data > 0);
+
+        // 第二台发送端（例如 Mac）发来新的 SETUP1：必须丢弃旧端口。
+        audio.handle_setup(SETUP1, &fp, None).unwrap();
+        assert_eq!(audio.data_port, 0);
+        assert_eq!(audio.control_port, 0);
+        audio.handle_setup(SETUP2, &fp, None).unwrap();
+        assert!(audio.data_port > 0);
+        assert_ne!(audio.data_port, first_data);
     }
 
     #[test]
