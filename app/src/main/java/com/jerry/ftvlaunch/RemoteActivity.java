@@ -55,10 +55,15 @@ public class RemoteActivity extends Activity {
                 }
             }
         });
-        findViewById(R.id.remote_reset).setOnClickListener(v -> {
-            ControlServer.newToken(this);
-            render();
-        });
+        findViewById(R.id.remote_reset).setOnClickListener(v ->
+                new android.app.AlertDialog.Builder(this)
+                        .setMessage("重新生成配对码？已经配对的手机需要重新扫码。")
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("重新生成", (d, w) -> {
+                            ControlServer.newToken(this);
+                            render();
+                        })
+                        .show());
         render();
     }
 
