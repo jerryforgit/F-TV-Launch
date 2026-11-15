@@ -41,9 +41,9 @@ final class MdnsAdvertiser {
     private volatile boolean running;
     private MulticastSocket socket;
 
-    MdnsAdvertiser(String instance, int port, String ip) {
+    MdnsAdvertiser(String instance, String serviceType, int port, String ip) {
         this.instance = instance;
-        this.service = "_raop._tcp.local";
+        this.service = serviceType;
         this.host = "ftvbox.local";
         this.port = port;
         this.ip = ip;

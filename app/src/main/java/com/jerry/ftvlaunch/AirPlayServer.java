@@ -44,6 +44,7 @@ final class AirPlayServer {
 
     private static final String TAG = "AirPlay";
     private static final int RTSP_PORT = 5000;
+    private static final int AIRPLAY2_PORT = 7100;
 
     private static AirPlayServer instance;
 
@@ -67,8 +68,10 @@ final class AirPlayServer {
         running = true;
         loadKeys();
         mac = hardwareAddress();
-        new Thread(this::rtspLoop, "airplay-rtsp").start();
+        new Thread(() -> rtspLoop(RTSP_PORT), "airplay-rtsp").start();
+        new Thread(() -> rtspLoop(AIRPLAY2_PORT), "airplay2-rtsp").start();
         registerMdns();
+        registerAirPlay2Mdns();
     }
 
     // ---------------- 密钥 ----------------
@@ -142,7 +145,8 @@ final class AirPlayServer {
 
     private void registerMdns() {
         try {
-            MdnsAdvertiser mdns = new MdnsAdvertiser(mac + "@F TV 桌面", RTSP_PORT, localIp());
+            MdnsAdvertiser mdns = new MdnsAdvertiser(mac + "@F TV 桌面", "_raop._tcp.local",
+                    RTSP_PORT, localIp());
             mdns.addTxt("txtvers", "1");
             mdns.addTxt("ch", "2");
             mdns.addTxt("cn", "0,1");
@@ -168,13 +172,34 @@ final class AirPlayServer {
         }
     }
 
+    /** AirPlay 2 的服务记录（iOS 17 走这个通道）。 */
+    private void registerAirPlay2Mdns() {
+        try {
+            String macColon = mac.replaceAll("(..)(?!$)", "$1:");
+            MdnsAdvertiser mdns = new MdnsAdvertiser("F TV 桌面", "_airplay._tcp.local",
+                    AIRPLAY2_PORT, localIp());
+            mdns.addTxt("deviceid", macColon);
+            mdns.addTxt("features", "0x5A7FFFF7,0x1E");
+            mdns.addTxt("flags", "0x4");
+            mdns.addTxt("model", "AppleTV3,2");
+            mdns.addTxt("pi", "b8b7c5a1-2f3c-4d5e-9a1b-3c4d5e6f7a8b");
+            mdns.addTxt("srcvers", "220.68");
+            mdns.addTxt("vv", "2");
+            if (pkHex != null) mdns.addTxt("pk", pkHex);
+            mdns.start();
+            Log.i(TAG, "AirPlay2 mDNS started");
+        } catch (Exception e) {
+            Log.e(TAG, "airplay2 mdns error", e);
+        }
+    }
+
     // ---------------- RTSP ----------------
 
-    private void rtspLoop() {
+    private void rtspLoop(int port) {
         try {
-            ServerSocket server = new ServerSocket(RTSP_PORT);
+            ServerSocket server = new ServerSocket(port);
             server.setReuseAddress(true);
-            Log.i(TAG, "RTSP listening " + RTSP_PORT);
+            Log.i(TAG, "RTSP listening " + port);
             while (running) {
                 Socket s = server.accept();
                 new Thread(() -> handleRtsp(s), "airplay-conn").start();
@@ -212,6 +237,10 @@ final class AirPlayServer {
                 }
                 byte[] body = len > 0 ? readFully(in, len) : new byte[0];
                 Log.d(TAG, "RTSP " + method + " " + uri + " len=" + len);
+                if (body.length > 0 && (uri.contains("pair") || uri.contains("auth")
+                        || uri.contains("info"))) {
+                    Log.d(TAG, "body[" + uri + "]: " + hex(body, Math.min(body.length, 64)));
+                }
                 String reply = dispatch(session, method, uri, cseq, challenge, body);
                 out.write(reply.getBytes(StandardCharsets.UTF_8));
                 out.flush();
