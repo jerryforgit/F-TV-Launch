@@ -14,6 +14,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.VideoView;
 
@@ -32,6 +34,8 @@ public class DlnaPlayerActivity extends Activity {
     private ImageView photo;
     private TextView titleView;
     private TextView hintView;
+    private ProgressBar progress;
+    private TextView timeView;
     private String uri = "";
     private String title = "";
     private boolean prepared;
@@ -79,6 +83,42 @@ public class DlnaPlayerActivity extends Activity {
         hintView.setText("OK 播放/暂停 · ◀▶ 快退/快进 10 秒 · 返回 退出");
         hintView.setShadowLayer(6, 0, 2, Color.BLACK);
         root.addView(hintView);
+
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(-1, -2);
+        bp.gravity = Gravity.BOTTOM;
+        bp.setMargins(dp(40), 0, dp(40), dp(60));
+        bar.setLayoutParams(bp);
+        bar.setPadding(dp(20), dp(10), dp(20), dp(10));
+        android.graphics.drawable.GradientDrawable scrim = new android.graphics.drawable.GradientDrawable();
+        scrim.setCornerRadius(dp(12));
+        scrim.setColor(0x99000000);
+        bar.setBackground(scrim);
+
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(0, dp(8), 1f);
+        progress.setLayoutParams(pp);
+        progress.setMax(1000);
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            progress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFF2F6BFF));
+            progress.setProgressBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(0x66FFFFFF));
+        }
+        bar.addView(progress);
+
+        timeView = new TextView(this);
+        LinearLayout.LayoutParams tp2 = new LinearLayout.LayoutParams(-2, -2);
+        tp2.leftMargin = dp(16);
+        timeView.setLayoutParams(tp2);
+        timeView.setTextColor(0xFFFFFFFF);
+        timeView.setTextSize(16);
+        timeView.setText("00:00 / 00:00");
+        timeView.setShadowLayer(4, 0, 1, Color.BLACK);
+        bar.addView(timeView);
+
+        root.addView(bar);
 
         setContentView(root);
     }
@@ -141,6 +181,8 @@ public class DlnaPlayerActivity extends Activity {
     private void showImage(String url) {
         imageMode = true;
         video.setVisibility(View.GONE);
+        progress.setVisibility(View.GONE);
+        timeView.setVisibility(View.GONE);
         photo.setVisibility(View.VISIBLE);
         DlnaServer.transportState = "PLAYING";
         DlnaServer.durationMs = 0;
@@ -183,10 +225,16 @@ public class DlnaPlayerActivity extends Activity {
         @Override
         public void run() {
             if (!imageMode && prepared) {
-                DlnaServer.positionMs = video.getCurrentPosition();
+                int dur = video.getDuration();
+                int pos = video.getCurrentPosition();
+                DlnaServer.positionMs = pos;
                 boolean playing = video.isPlaying();
-                RustCast.setProgress(video.getDuration() / 1000,
-                        video.getCurrentPosition() / 1000, playing ? 1 : 0);
+                RustCast.setProgress(dur / 1000, pos / 1000, playing ? 1 : 0);
+                if (dur > 0) {
+                    progress.setMax(dur);
+                    progress.setProgress(pos);
+                }
+                timeView.setText(clock(pos) + " / " + clock(dur));
             }
             handler.postDelayed(this, 500);
         }
@@ -262,6 +310,12 @@ public class DlnaPlayerActivity extends Activity {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    private static String clock(int ms) {
+        if (ms < 0) ms = 0;
+        int total = ms / 1000;
+        return String.format(java.util.Locale.US, "%02d:%02d", total / 60, total % 60);
     }
 
     private void adjustVolume(int dir) {
