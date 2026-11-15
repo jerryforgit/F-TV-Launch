@@ -9,6 +9,7 @@ import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
+import android.view.View;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -258,19 +259,17 @@ final class ControlServer {
 
     private String key(String code) {
         if (code == null) return err("no code");
-        // 桌面 / 应用抽屉自己在前台：直接投递按键，方向键/OK 全都能用（不需要 root）
-        final android.app.Activity act = MainActivity.current != null
-                ? MainActivity.current : AllAppsActivity.current;
+        // 自己的界面在前台（桌面/抽屉/设置页…）：直接投递按键，方向键/OK/返回都能用
+        final android.app.Activity act = App.current;
         if (act != null) {
+            if ("BACK".equals(code)) {
+                main.post(act::onBackPressed);
+                return ok();
+            }
             final int kc = keyCode(code);
-            if (kc > 0) {
-                main.post(() -> {
-                    long now = android.os.SystemClock.uptimeMillis();
-                    act.getWindow().getDecorView().dispatchKeyEvent(
-                            new KeyEvent(now, now, KeyEvent.ACTION_DOWN, kc, 0));
-                    act.getWindow().getDecorView().dispatchKeyEvent(
-                            new KeyEvent(now, now, KeyEvent.ACTION_UP, kc, 0));
-                });
+            if (kc > 0 && (isDpad(kc) || kc == KeyEvent.KEYCODE_DPAD_CENTER
+                    || kc == KeyEvent.KEYCODE_ENTER)) {
+                main.post(() -> sendToActivity(act, kc));
                 return ok();
             }
         }
@@ -356,6 +355,32 @@ final class ControlServer {
         RemoteA11yService svc = RemoteA11yService.get();
         if (svc != null && svc.tap(p[0], p[1])) return ok();
         return err("点击需要 root 或无障碍服务");
+    }
+
+    private static boolean isDpad(int kc) {
+        return kc == KeyEvent.KEYCODE_DPAD_UP || kc == KeyEvent.KEYCODE_DPAD_DOWN
+                || kc == KeyEvent.KEYCODE_DPAD_LEFT || kc == KeyEvent.KEYCODE_DPAD_RIGHT;
+    }
+
+    /** 把按键交给 Activity；它不处理时自己找下一个焦点（没有 root 时 ViewRootImpl 那步走不到）。 */
+    private static void sendToActivity(android.app.Activity act, int kc) {
+        long now = android.os.SystemClock.uptimeMillis();
+        View decor = act.getWindow().getDecorView();
+        boolean handled = decor.dispatchKeyEvent(
+                new KeyEvent(now, now, KeyEvent.ACTION_DOWN, kc, 0));
+        decor.dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, kc, 0));
+        if (handled) return;
+        View focused = decor.findFocus();
+        if (focused == null) focused = decor;
+        if (kc == KeyEvent.KEYCODE_DPAD_CENTER || kc == KeyEvent.KEYCODE_ENTER) {
+            focused.performClick();
+            return;
+        }
+        int dir = kc == KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP
+                : kc == KeyEvent.KEYCODE_DPAD_DOWN ? View.FOCUS_DOWN
+                : kc == KeyEvent.KEYCODE_DPAD_LEFT ? View.FOCUS_LEFT : View.FOCUS_RIGHT;
+        View next = focused.focusSearch(dir);
+        if (next != null && next != focused) next.requestFocus(dir);
     }
 
     private String launch(String pkg) {
@@ -533,7 +558,16 @@ function toast(m){const el=$('toast');el.textContent=m;el.classList.add('on');se
 async function api(p,extra){
   if(!token){toast('请重新扫码配对');return null}
   const u='/api/'+p+'?t='+encodeURIComponent(token)+(extra?'&'+extra:'');
-  try{const r=await fetch(u);return await r.json()}catch(e){toast('电视没有响应');return null}
+  try{
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok&&r.status!==200){toast('电视返回错误 '+r.status);return null}
+    const j=await r.json();
+    if(j&&j.error==='token'){
+      toast('配对码已失效，请在电视上重新扫码');
+      localStorage.removeItem('ftv_token');token=null;return null;
+    }
+    return j;
+  }catch(e){toast('电视没有响应');return null}
 }
 async function status(){
   const s=await api('ping');
@@ -541,8 +575,12 @@ async function status(){
   else{$('mode').textContent=token?'未连接':'未配对'}
 }
 status();setInterval(status,15000);
+if(!token)toast('请重新扫码配对');
 
-function key(k){api('key','code='+k)}
+async function key(k){
+  const r=await api('key','code='+k);
+  if(r&&!r.ok&&r.error)toast(r.error);
+}
 document.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>key(b.dataset.k)));
 document.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>api('media','action='+b.dataset.m)));
 
